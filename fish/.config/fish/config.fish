@@ -39,10 +39,14 @@ set -gx XDG_DATA_HOME $HOME/.local/share
 set -gx VIRTUALENV_DIR $XDG_STATE_HOME
 set -gx EDITOR vim
 
-# === PATH ===
+# === PATH (fish_add_path only adds if dir exists) ===
 fish_add_path $HOME/.local/bin
 fish_add_path $HOME/bin
 fish_add_path $HOME/.cargo/bin
+# macOS: Homebrew (Apple Silicon, Intel) + MacPorts
+fish_add_path /opt/homebrew/bin /opt/homebrew/sbin
+fish_add_path /usr/local/bin /usr/local/sbin
+fish_add_path /opt/local/bin /opt/local/sbin
 
 # === mise (replaces pyenv/nvm/rbenv) ===
 if type -q mise
@@ -64,6 +68,16 @@ if type -q fzf
     end
     set -gx FZF_DEFAULT_OPTS '--height 40% --layout=reverse --border'
     fzf --fish | source
+end
+
+# === zoxide (smart cd) ===
+if type -q zoxide
+    zoxide init fish | source
+end
+
+# === bat (better cat) ===
+if type -q bat
+    abbr cat "bat"
 end
 
 # === SSH agent ===

@@ -18,7 +18,17 @@ export XDG_CACHE_HOME="$HOME/.cache"
 
 # === Environment ===
 export EDITOR=vim
+
+# === PATH (platform-aware) ===
 export PATH="$HOME/.local/bin:$HOME/bin:$HOME/.cargo/bin:$PATH"
+case "$(uname)" in
+    Darwin)
+        # Homebrew (Apple Silicon then Intel) + MacPorts
+        [ -d /opt/homebrew/bin ] && export PATH="/opt/homebrew/bin:/opt/homebrew/sbin:$PATH"
+        [ -d /usr/local/bin ] && export PATH="/usr/local/bin:/usr/local/sbin:$PATH"
+        [ -d /opt/local/bin ] && export PATH="/opt/local/bin:/opt/local/sbin:$PATH"
+        ;;
+esac
 
 # === Git aliases ===
 alias gc='git commit'
@@ -55,3 +65,9 @@ if command -v fd &>/dev/null; then
     export FZF_ALT_C_COMMAND='fd --type d --hidden --follow --exclude .git'
 fi
 export FZF_DEFAULT_OPTS='--height 40% --layout=reverse --border'
+
+# === zoxide (smart cd) ===
+command -v zoxide &>/dev/null && eval "$(zoxide init bash)"
+
+# === bat (better cat) ===
+command -v bat &>/dev/null && alias cat='bat'

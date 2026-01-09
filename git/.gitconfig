@@ -7,8 +7,13 @@
 
 [core]
 	editor = vim
-	pager = less -FRX
+	pager = delta
 	autocrlf = input
+
+[delta]
+	navigate = true
+	line-numbers = true
+	side-by-side = true
 
 [pull]
 	rebase = true
@@ -52,3 +57,9 @@
 
 [column]
 	ui = auto
+
+[branch]
+	sort = -committerdate
+
+[maintenance]
+	auto = true
