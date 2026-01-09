@@ -1,0 +1,91 @@
+{
+  "model": "opus",
+  "permissions": {
+    "allow": [
+      "Skill(finalize:*)",
+      "Skill(next:*)",
+      "Skill(commit:*)",
+      "Skill(code-review:*)",
+
+      "Bash(git:*)",
+      "Bash(gh:*)",
+
+      "Bash(ruff:*)",
+      "Bash(mypy:*)",
+      "Bash(pyright:*)",
+      "Bash(black:*)",
+      "Bash(isort:*)",
+      "Bash(prettier:*)",
+      "Bash(eslint:*)",
+      "Bash(biome:*)",
+      "Bash(rustfmt:*)",
+      "Bash(gofmt:*)",
+
+      "Bash(tree:*)",
+      "Bash(ls:*)",
+      "Bash(find:*)",
+      "Bash(fzf:*)",
+      "Bash(wc:*)",
+      "Bash(file:*)",
+      "Bash(stat:*)",
+      "Bash(du:*)",
+      "Bash(df:*)",
+      "Bash(pwd:*)",
+      "Bash(which:*)",
+      "Bash(type:*)",
+      "Bash(env:*)",
+      "Bash(echo:*)",
+      "Bash(date:*)",
+      "Bash(diff:*)",
+      "Bash(sort:*)",
+      "Bash(uniq:*)",
+      "Bash(jq:*)",
+      "Bash(yq:*)",
+
+      "Bash(docker ps:*)",
+      "Bash(docker logs:*)",
+      "Bash(docker images:*)",
+      "Bash(docker compose ps:*)",
+      "Bash(docker compose logs:*)",
+
+      "Bash(ps:*)",
+      "Bash(jobs:*)",
+
+      "WebSearch"
+    ]
+  },
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "jq -r '.tool_input.file_path' | while read f; do case \"$f\" in *.py) ruff format --quiet \"$f\" 2>/dev/null || black --quiet \"$f\" 2>/dev/null ;; *.ts|*.tsx|*.js|*.jsx) prettier --write \"$f\" 2>/dev/null ;; esac; done; exit 0"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "case $(uname) in Darwin) terminal-notifier -title 'Claude Code' -message 'Ready for input' -sound Glass ;; *) [ -n \"$DISPLAY\" ] && notify-send 'Claude Code' 'Ready for input' 2>/dev/null || true ;; esac"
+          }
+        ]
+      }
+    ],
+    "Notification": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "msg=$(jq -r '.message // \"Claude needs attention\"'); case $(uname) in Darwin) terminal-notifier -title 'Claude Code' -message \"$msg\" -sound Glass ;; *) [ -n \"$DISPLAY\" ] && notify-send 'Claude Code' \"$msg\" 2>/dev/null || true ;; esac"
+          }
+        ]
+      }
+    ]
+  }
+}
