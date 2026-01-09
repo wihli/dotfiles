@@ -80,6 +80,9 @@ if type -q bat
     abbr cat "bat"
 end
 
+# === devbox (needs bash shell) ===
+alias devbox "SHELL=/bin/bash command devbox"
+
 # === SSH agent ===
 if status is-interactive
     if not set -q SSH_AUTH_SOCK; and test -z "$SSH_CONNECTION"
