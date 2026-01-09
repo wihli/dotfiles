@@ -1,0 +1,54 @@
+[user]
+	email = eric.ihli@vanta.com
+	name = Eric Ihli
+
+[init]
+	defaultBranch = main
+
+[core]
+	editor = vim
+	pager = less -FRX
+	autocrlf = input
+
+[pull]
+	rebase = true
+
+[push]
+	default = current
+	autoSetupRemote = true
+
+[fetch]
+	prune = true
+
+[merge]
+	conflictStyle = diff3
+
+[diff]
+	colorMoved = default
+
+[alias]
+	co = checkout
+	sw = switch
+	br = branch
+	st = status -sb
+	lg = log --oneline --graph --decorate -20
+	lga = log --oneline --graph --decorate --all -20
+	last = log -1 HEAD --stat
+	unstage = reset HEAD --
+	amend = commit --amend --no-edit
+	wip = !git add -A && git commit -m 'WIP'
+	undo = reset --soft HEAD~1
+	# Show what I did today
+	today = log --since=midnight --author='Eric Ihli' --oneline
+
+[filter "lfs"]
+	required = true
+	clean = git-lfs clean -- %f
+	smudge = git-lfs smudge -- %f
+	process = git-lfs filter-process
+
+[rerere]
+	enabled = true
+
+[column]
+	ui = auto
