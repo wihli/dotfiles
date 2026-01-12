@@ -18,6 +18,21 @@ if ! command -v stow &> /dev/null; then
     fi
 fi
 
+# Remove existing .bashrc to allow stow overwrite (common in codespaces)
+if [ -f ~/.bashrc ] && [ ! -L ~/.bashrc ]; then
+    echo "Removing existing .bashrc..."
+    rm ~/.bashrc
+fi
+
+# Install git-delta on Linux
+if [[ "$(uname)" == "Linux" ]] && ! command -v delta &> /dev/null; then
+    echo "Installing git-delta..."
+    DELTA_VERSION="0.18.2"
+    curl -sLO "https://github.com/dandavison/delta/releases/download/${DELTA_VERSION}/git-delta_${DELTA_VERSION}_amd64.deb"
+    sudo dpkg -i "git-delta_${DELTA_VERSION}_amd64.deb"
+    rm "git-delta_${DELTA_VERSION}_amd64.deb"
+fi
+
 # Stow all packages
 for pkg in claude agents bash fish git starship tmux zellij; do
     echo "Stowing $pkg..."

@@ -47,6 +47,11 @@ alias gsw='git switch'
 alias gswc='git switch -c'
 alias grb='git rebase'
 
+# === ls aliases ===
+alias ll='ls -alF'
+alias la='ls -A'
+alias l='ls -CF'
+
 # === Cross-platform clipboard ===
 case "$(uname)" in
     Darwin) alias xcp='pbcopy'; alias xpaste='pbpaste' ;;
@@ -56,7 +61,16 @@ esac
 # === Tools (if available) ===
 command -v mise &>/dev/null && eval "$(mise activate bash)"
 command -v starship &>/dev/null && eval "$(starship init bash)"
-command -v fzf &>/dev/null && eval "$(fzf --bash)"
+# fzf: use --bash for 0.48+, otherwise source scripts directly
+if command -v fzf &>/dev/null; then
+    fzf_version=$(fzf --version | cut -d' ' -f1)
+    if [[ "$(printf '%s\n' "0.48" "$fzf_version" | sort -V | head -n1)" == "0.48" ]]; then
+        eval "$(fzf --bash)"
+    else
+        [ -f /usr/share/doc/fzf/examples/key-bindings.bash ] && source /usr/share/doc/fzf/examples/key-bindings.bash
+        [ -f /usr/share/doc/fzf/examples/completion.bash ] && source /usr/share/doc/fzf/examples/completion.bash
+    fi
+fi
 
 # === fzf with fd ===
 if command -v fd &>/dev/null; then
@@ -71,3 +85,18 @@ command -v zoxide &>/dev/null && eval "$(zoxide init bash)"
 
 # === bat (better cat) ===
 command -v bat &>/dev/null && alias cat='bat'
+
+# === Bash completion ===
+if ! shopt -oq posix; then
+    if [ -f /usr/share/bash-completion/bash_completion ]; then
+        . /usr/share/bash-completion/bash_completion
+    elif [ -f /etc/bash_completion ]; then
+        . /etc/bash_completion
+    fi
+fi
+
+# === Nix (for codespaces) ===
+if [ "${PATH#*$HOME/.nix-profile/bin}" = "${PATH}" ]; then
+    [ -z "$USER" ] && USER=$(whoami)
+    [ -f "$HOME/.nix-profile/etc/profile.d/nix.sh" ] && . "$HOME/.nix-profile/etc/profile.d/nix.sh"
+fi
