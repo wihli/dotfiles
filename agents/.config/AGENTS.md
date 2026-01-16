@@ -44,9 +44,9 @@ Non-trivial functions get detailed "why" docstrings:
 - **Behavior**: What decisions and why?
 - **Exceptions**: What error conditions cause failure?
 
-Comments should add value beyond what code says:
-- X `# Calculate EPS surprise` (obvious)
-- OK `# Use abs() to handle negative estimates (expected loss)`
+**Comments should add value beyond what code says**:
+- BAD! `# Calculate EPS surprise` (obvious)
+- GOOD! `# Use abs() to handle negative estimates (expected loss)`
 
 ### Error Handling
 
