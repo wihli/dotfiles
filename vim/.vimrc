@@ -11,7 +11,7 @@ colorscheme desert
 " Basic settings for better experience
 set background=dark
 set number
-set relativenumber
+set norelativenumber
 set ruler
 set laststatus=2
 set showcmd
