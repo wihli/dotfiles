@@ -27,6 +27,8 @@ case "$(uname)" in
         [ -d /opt/homebrew/bin ] && export PATH="/opt/homebrew/bin:/opt/homebrew/sbin:$PATH"
         [ -d /usr/local/bin ] && export PATH="/usr/local/bin:/usr/local/sbin:$PATH"
         [ -d /opt/local/bin ] && export PATH="/opt/local/bin:/opt/local/sbin:$PATH"
+        # Emacs.app from MacPorts
+        [ -d /Applications/MacPorts/Emacs.app/Contents/MacOS ] && export PATH="/Applications/MacPorts/Emacs.app/Contents/MacOS:/Applications/MacPorts/Emacs.app/Contents/MacOS/bin:$PATH"
         ;;
 esac
 
@@ -72,6 +74,9 @@ case "$(uname)" in
     Darwin) alias xcp='pbcopy'; alias xpaste='pbpaste' ;;
     *)      alias xcp='xclip -selection clipboard'; alias xpaste='xclip -selection clipboard -o' ;;
 esac
+
+# === Emacs from MacPorts ===
+[ -f /Applications/MacPorts/Emacs.app/Contents/MacOS/Emacs ] && alias emacs='/Applications/MacPorts/Emacs.app/Contents/MacOS/Emacs'
 
 # === Tools (if available) ===
 command -v mise &>/dev/null && eval "$(mise activate bash)"
