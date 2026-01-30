@@ -1,15 +1,12 @@
 {
-  "model": "opus",
   "permissions": {
     "allow": [
       "Skill(finalize:*)",
       "Skill(next:*)",
       "Skill(commit:*)",
       "Skill(code-review:*)",
-
       "Bash(git:*)",
       "Bash(gh:*)",
-
       "Bash(ruff:*)",
       "Bash(mypy:*)",
       "Bash(pyright:*)",
@@ -20,7 +17,6 @@
       "Bash(biome:*)",
       "Bash(rustfmt:*)",
       "Bash(gofmt:*)",
-
       "Bash(tree:*)",
       "Bash(ls:*)",
       "Bash(find:*)",
@@ -37,23 +33,22 @@
       "Bash(echo:*)",
       "Bash(date:*)",
       "Bash(diff:*)",
+      "Bash(grep:*)",
+      "Bash(rg:*)",
       "Bash(sort:*)",
       "Bash(uniq:*)",
       "Bash(jq:*)",
       "Bash(yq:*)",
-
       "Bash(docker ps:*)",
       "Bash(docker logs:*)",
       "Bash(docker images:*)",
       "Bash(docker compose ps:*)",
       "Bash(docker compose logs:*)",
-
       "Bash(podman ps:*)",
       "Bash(podman logs:*)",
       "Bash(podman images:*)",
       "Bash(podman compose ps:*)",
       "Bash(podman compose logs:*)",
-
       "Bash(yarn:*)",
       "Bash(npm:*)",
       "Bash(npx:*)",
@@ -61,15 +56,12 @@
       "Bash(turbo:*)",
       "Bash(just:*)",
       "Bash(uv:*)",
-
       "Bash(jest:*)",
       "Bash(vitest:*)",
       "Bash(mocha:*)",
       "Bash(tsc:*)",
-
       "Bash(ps:*)",
       "Bash(jobs:*)",
-
       "WebSearch"
     ]
   },
@@ -106,5 +98,6 @@
         ]
       }
     ]
-  }
+  },
+  "model": "opus"
 }
