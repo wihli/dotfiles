@@ -122,10 +122,31 @@ Search patterns:
 
 Always provide:
 1. **Summary** - The "why" in 2-3 sentences
-2. **Timeline** - Key commits/PRs/tickets with dates
-3. **References** - Links for user verification
-4. **Methodology** - Commands used (teach the user)
-5. **Related terms** - Concepts user might not know to search for
+2. **Timeline** - Key commits/PRs/tickets with dates. **Link every entry** (see Citing Sources below)
+3. **Methodology** - Commands used (teach the user)
+4. **Related terms** - Concepts user might not know to search for
+
+### Citing Sources
+
+**Every claim should link to its source.** The user needs to verify your findings and explore further.
+
+Sources to link (in priority order):
+- **Slack threads**: Glean search results include Slack URLs — preserve and cite them. These are often the richest source of "why" context (decisions, debates, rejected alternatives).
+- **GitHub PRs**: `https://github.com/VantaInc/obsidian/pull/<number>`
+- **Commits**: short SHA with context, e.g. `7eb512b` from `git log`
+- **Jira tickets**: `https://vanta.atlassian.net/browse/TICKET-1234`
+- **Guru cards**: URLs from `mcp__guru__search_cards` results
+- **Glean docs**: URLs from `mcp__glean_default__search` results (GDrive, Confluence, etc.)
+
+**Timeline entries should look like:**
+```
+1. **Oct 30**: Conan discovers cross-partition role assumption doesn't work.
+   ([Slack](https://vantahq.slack.com/archives/C08RS5TJGF4/p1761866689287059))
+2. **Jan 8**: PR merges, breaks prod. Forward-fixed via [PR #115964](https://github.com/VantaInc/obsidian/pull/115964).
+   ([#build-infra-prod](https://vantahq.slack.com/archives/C03QB3FV1CJ/p1767905464797069))
+```
+
+**Don't hoard links in a separate "References" section** — inline them where the claim is made. The user shouldn't have to cross-reference a footnote list.
 
 ## Understanding Frames
 
@@ -155,11 +176,12 @@ Use Glean to search company communications and documents.
 
 > **Note**: If Glean tools aren't available, run `/toggle-glean-mcp enable` first.
 
-**Search** (returns snippets, cheap):
+**Search** (returns snippets + URLs, cheap):
 ```
 mcp__glean_default__search(query="CIDR subnet github actions", app="slack")
 mcp__glean_default__search(query="IP allocation", updated="past_month")
 ```
+**Always preserve URLs from search results** — Slack thread links, doc URLs, etc. These are your citation sources for the timeline. Glean results include direct Slack message permalinks; use them.
 
 **Chat** (AI synthesis, moderate cost):
 ```
