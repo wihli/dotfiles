@@ -5,6 +5,7 @@ description: |
   Use when user asks "why" about code patterns, config values, IaC decisions, or historical choices.
   Triggers: "why is this...", "what's the context for...", "who decided...", "when was this added...",
   "explain the history of...", understanding business/organizational reasoning (not technical correctness).
+  Also triggers on bare terms/identifiers the user wants explored (e.g. "warm-caches", "staging-snapshots").
 ---
 
 # Code Context
@@ -126,6 +127,28 @@ Always provide:
 4. **Methodology** - Commands used (teach the user)
 5. **Related terms** - Concepts user might not know to search for
 
+## Understanding Frames
+
+After gathering facts, apply these 6 lenses to build real understanding. Don't wait for follow-ups — anticipate the deeper questions.
+
+### 1. Parts → Whole
+Map how this connects to adjacent systems. What's upstream? Downstream? Trace the full chain from trigger to outcome. A single resource is meaningless in isolation — show how it fits into the pipeline.
+
+### 2. Compare & Contrast
+What else solves a similar problem differently in this codebase? Why the divergence? The contrast between approaches often reveals the real constraints better than either approach alone.
+
+### 3. Consequences & Implications
+What breaks if this changes? What becomes possible if a constraint lifts? Think both directions — fragility (what could go wrong today) and opportunity (what could be simplified if conditions change).
+
+### 4. Boundaries & Scope
+Where does this apply and where does it *not*? What environments, regions, contexts? Knowing the edges prevents false generalizations and scopes the blast radius of changes.
+
+### 5. Assumptions & Prerequisites
+What must be true for this to work? Surface the hidden load-bearing walls — config values, installed tools, network access, secrets that must exist. These are invisible until they break.
+
+### 6. Alternatives Not Taken
+Why this approach and not something else? Search PR comments, Slack threads, and linked tickets for rejected alternatives. The *absence* of alternatives considered is itself a signal — was this a thoughtful decision or a quick fix?
+
 ## Glean MCP (Slack/GDrive/Gmail/Confluence)
 
 Use Glean to search company communications and documents.
@@ -164,6 +187,16 @@ Filter options:
 - `updated`: today, yesterday, past_week, past_month
 - `from`/`owner`: person name
 - `after`/`before`: "YYYY-MM-DD"
+
+## Related Term Exploration
+
+When the user provides a bare term or identifier (not a full question), treat it as a request to explore that term in the codebase. Run the standard archaeology workflow:
+1. `git log -S "term"` to find introduction
+2. `grep` for current usage across file types
+3. Read the relevant files for context
+4. Follow the same output format (summary, timeline, references, methodology, related terms)
+
+This makes the "Related terms" output from a previous investigation directly actionable — the user can just type one and get the full story.
 
 ## Tips
 
