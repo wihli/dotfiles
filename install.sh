@@ -18,10 +18,13 @@ if ! command -v stow &> /dev/null; then
     fi
 fi
 
-# Remove existing .bashrc to allow stow overwrite (common in codespaces)
-if [ -f ~/.bashrc ] && [ ! -L ~/.bashrc ]; then
-    echo "Removing existing .bashrc..."
-    rm ~/.bashrc
+# Clean up ~/.bashrc.d so stow can create its symlink cleanly
+if [ -L ~/.bashrc.d ] && [ ! -e ~/.bashrc.d ]; then
+    echo "Removing broken .bashrc.d symlink..."
+    rm ~/.bashrc.d
+elif [ -d ~/.bashrc.d ] && [ ! -L ~/.bashrc.d ]; then
+    echo "Removing existing .bashrc.d directory..."
+    rm -rf ~/.bashrc.d
 fi
 
 # Install git-delta on Linux
@@ -38,6 +41,23 @@ for pkg in claude agents bash fish git starship tmux vim zellij; do
     echo "Stowing $pkg..."
     stow -t ~ "$pkg"
 done
+
+# Ensure ~/.bashrc sources ~/.bashrc.d/ (works with devcontainer-managed .bashrc)
+BASHRC_HOOK='# Source drop-in configs from ~/.bashrc.d/
+if [ -d "$HOME/.bashrc.d" ]; then
+    for f in "$HOME/.bashrc.d"/*.bash; do
+        [ -r "$f" ] && . "$f"
+    done
+    unset f
+fi'
+if [ ! -f ~/.bashrc ]; then
+    echo "Creating minimal ~/.bashrc..."
+    printf '# Minimal bash initialization\n[[ $- != *i* ]] && return\n' > ~/.bashrc
+fi
+if ! grep -qF '# Source drop-in configs from ~/.bashrc.d/' ~/.bashrc; then
+    echo "Adding .bashrc.d sourcing to ~/.bashrc..."
+    printf '\n%s\n' "$BASHRC_HOOK" >> ~/.bashrc
+fi
 
 # Symlink AGENTS.md to CLAUDE.md for Claude Code
 if [ -f ~/.config/AGENTS.md ] && [ ! -e ~/.claude/CLAUDE.md ]; then

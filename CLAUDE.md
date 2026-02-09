@@ -10,7 +10,7 @@ This is a dotfiles repository using GNU Stow for symlink management. It contains
 
 ### Installation
 ```bash
-./install.sh  # Auto-installs stow, removes existing .bashrc, installs delta, stows all packages
+./install.sh  # Auto-installs stow, installs delta, stows all packages, hooks bash into .bashrc
 ```
 
 ### Manual Stow Operations
@@ -23,7 +23,7 @@ stow -D -t ~ <package>     # Uninstall package
 
 Packages managed via Stow:
 - `agents/` - Contains AGENTS.md with Claude Code instructions (symlinked to ~/.claude/CLAUDE.md)
-- `bash/` - Bash configuration (.bashrc)
+- `bash/` - Bash configuration (drop-in via `~/.bashrc.d/dotfiles.bash`)
 - `claude/` - Claude Code settings (settings.local.json)
 - `fish/` - Fish shell configuration
 - `git/` - Git configuration (.gitconfig)
@@ -35,7 +35,7 @@ Packages managed via Stow:
 
 1. **AGENTS.md Integration**: The `agents/.config/AGENTS.md` file contains detailed coding guidelines and is automatically symlinked to `~/.claude/CLAUDE.md` by the install script.
 
-2. **Codespaces Support**: This repository is designed to work with GitHub Codespaces. The install script handles removing existing .bashrc to prevent conflicts.
+2. **Devcontainer/Codespaces Support**: Bash config uses a `.bashrc.d/` drop-in pattern so it coexists with container-managed `~/.bashrc`. The install script appends a sourcing hook to `~/.bashrc` rather than replacing it.
 
 3. **Delta Installation**: On Linux systems, the install script automatically installs git-delta for enhanced diff viewing.
 
@@ -44,7 +44,7 @@ Packages managed via Stow:
 ## Development Workflow
 
 When modifying dotfiles:
-1. Edit files within their package directories (e.g., `bash/.bashrc`)
+1. Edit files within their package directories (e.g., `bash/.bashrc.d/dotfiles.bash`)
 2. Changes take effect immediately due to symlinks
 3. Test changes before committing
 4. Keep each package self-contained
