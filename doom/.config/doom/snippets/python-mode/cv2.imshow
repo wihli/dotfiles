@@ -1,0 +1,9 @@
+# -*- mode: snippet -*-
+# name: cv2.imshow
+# uuid: cv2.imshow
+# key: cvsh
+# condition: t
+# --
+cv2.imshow($1, $2)
+cv2.waitKey(0)
+cv2.destroyAllWindows()

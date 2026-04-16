@@ -1,0 +1,82 @@
+#!/bin/bash
+# Pre-push hook: use Claude to review outgoing changes for private info leaks.
+# Installed by install.sh via core.hooksPath.
+
+set -uo pipefail
+
+# Skip if claude CLI isn't available
+if ! command -v claude &>/dev/null; then
+    echo "[pre-push] claude CLI not found, skipping privacy review"
+    exit 0
+fi
+
+# Parse pre-push stdin to get the range of commits being pushed.
+# Format: <local ref> <local sha> <remote ref> <remote sha>
+ZERO="0000000000000000000000000000000000000000"
+while read -r _ local_sha _ remote_sha; do
+    if [ "$local_sha" = "$ZERO" ]; then
+        # Deleting a remote ref, nothing to review
+        continue
+    fi
+
+    if [ "$remote_sha" = "$ZERO" ]; then
+        # New branch — review all commits
+        diff=$(git diff --no-color "$(git merge-base HEAD main 2>/dev/null || echo HEAD~1)..HEAD" 2>/dev/null || git show --no-color HEAD)
+    else
+        diff=$(git diff --no-color "$remote_sha..$local_sha")
+    fi
+
+    if [ -z "$diff" ]; then
+        continue
+    fi
+
+    echo "[pre-push] Reviewing changes for private info leaks..."
+
+    verdict=$(echo "$diff" | claude -p --model haiku \
+        --allowedTools "" \
+        --max-turns 1 \
+        "You are a privacy reviewer for a PUBLIC dotfiles repo. This diff is about to be pushed to a public GitHub repository.
+
+Review it for any of the following that should NOT be in a public repo:
+- Internal project names, codenames, or repo names (beyond generic 'dotfiles')
+- Specific team names, Slack channel names, or internal tool URLs
+- AWS account IDs, internal hostnames, IP addresses
+- References to specific work projects, migrations, or initiatives
+- Internal documentation URLs (Confluence, Notion, Jira, etc.)
+- Anything that reveals specific operational details of the employer
+
+Things that ARE acceptable in a public dotfiles repo:
+- The owner's name and work email
+- Generic employer name (e.g. 'Vanta')
+- Generic tool names (Terraform, Datadog, etc.)
+- Shell aliases, editor config, prompt config
+- AI agent instructions about coding style and workflow preferences
+- Skills and subagents with generic functionality
+- References to the companion private dotfiles repo (e.g. 'wihli-dotfiles-private') — the two-repo public/private split is the whole point of this setup
+
+Respond with EXACTLY one of:
+PASS — if nothing private is found
+FAIL — followed by a brief explanation of what was found and why it's a concern
+
+Do not include any other text." 2>&1)
+    claude_exit=$?
+
+    if [ $claude_exit -ne 0 ]; then
+        echo "[pre-push] WARNING: claude review failed (exit $claude_exit): $verdict"
+        echo "[pre-push] Allowing push — review manually or retry."
+        continue
+    fi
+
+    if echo "$verdict" | grep -q "^FAIL"; then
+        echo ""
+        echo "[pre-push] BLOCKED — potential private info in outgoing changes:"
+        echo "$verdict" | tail -n +1
+        echo ""
+        echo "Fix the issue and try again, or bypass with: git push --no-verify"
+        exit 1
+    fi
+
+    echo "[pre-push] Privacy review passed."
+done
+
+exit 0
