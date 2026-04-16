@@ -110,7 +110,7 @@ if [ ! -d "$PRIVATE_DOTFILES" ]; then
 fi
 if [ -d "$PRIVATE_DOTFILES" ]; then
     echo "Stowing private dotfiles..."
-    for pkg in claude agents skills subagents fish bin; do
+    for pkg in claude agents skills subagents fish bin oncall; do
         [ -d "$PRIVATE_DOTFILES/$pkg" ] || continue
         stow --no-folding -t ~ -d "$PRIVATE_DOTFILES" "$pkg"
     done
