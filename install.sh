@@ -190,7 +190,17 @@ fi
 if [ -d ~/.local/share/skills ]; then
     ensure_link ~/.local/share/skills ~/.claude/skills || true
     if [ -d ~/.codex ]; then
-        ensure_link ~/.local/share/skills ~/.codex/skills || true
+        # Codex manages its own skills/ dir (with .system/ inside), so we can't
+        # replace it with a directory symlink. Instead, symlink each skill individually.
+        if [ -d ~/.codex/skills ] && [ ! -L ~/.codex/skills ]; then
+            for skill_dir in ~/.local/share/skills/*/; do
+                skill_name=$(basename "$skill_dir")
+                [ "$skill_name" = ".system" ] && continue
+                ensure_link "$skill_dir" "$HOME/.codex/skills/$skill_name" || true
+            done
+        else
+            ensure_link ~/.local/share/skills ~/.codex/skills || true
+        fi
     fi
 fi
 if [ -d ~/.local/share/subagents ]; then
