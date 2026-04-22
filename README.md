@@ -1,6 +1,6 @@
 # Work Dotfiles
 
-Public/base dotfiles for Codespaces and work machines. Uses [GNU Stow](https://www.gnu.org/software/stow/) for symlink management and is designed to layer with `~/src/wihli-dotfiles-private`.
+Public/base dotfiles for Codespaces and work machines. Uses [GNU Stow](https://www.gnu.org/software/stow/) for symlink management and is designed to layer with `$SRC_DIR/wihli-dotfiles-private`.
 
 ## Quick Install
 
@@ -34,7 +34,7 @@ The intended split is:
 - Claude-specific config: `claude/.claude/settings.json`
 - Shared skills: `skills/.local/share/skills/`
 - Shared subagents: `subagents/.local/share/subagents/`
-- Private overlays: `~/src/wihli-dotfiles-private/{claude,skills,subagents,...}`
+- Private overlays: `$SRC_DIR/wihli-dotfiles-private/{claude,skills,subagents,...}`
 
 `install.sh` stows the public repo first, overlays the private repo second, then links shared agent assets into the paths Claude and Codex expect.
 

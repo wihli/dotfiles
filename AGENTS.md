@@ -6,8 +6,8 @@ Shared repo instructions for coding agents working on this dotfiles repo.
 
 This repo is the public/base layer of a two-repo dotfiles setup:
 
-- `~/src/wihli-dotfiles` is the public base
-- `~/src/wihli-dotfiles-private` is the private overlay
+- `$SRC_DIR/wihli-dotfiles` is the public base
+- `$SRC_DIR/wihli-dotfiles-private` is the private overlay
 
 The install flow stows the public repo first, then overlays private packages when present.
 
