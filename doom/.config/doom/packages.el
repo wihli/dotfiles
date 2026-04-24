@@ -70,7 +70,7 @@
 (package! json-mode)
 (package! poly-org :disable t)
 (package! lit-mode
-  :recipe (:local-repo "~/src/lit-mode"
+  :recipe (:local-repo "~/code/lit-mode"
            :files ("*.el")
            :build (:not compile)))
 (package! gptel)

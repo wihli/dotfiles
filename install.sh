@@ -101,7 +101,7 @@ if ! grep -qF '# Source drop-in configs from ~/.bashrc.d/' ~/.bashrc; then
 fi
 
 # Clone and stow private dotfiles (silently skips if no access)
-SRC_DIR="${SRC_DIR:-$HOME/src}"
+SRC_DIR="${SRC_DIR:-$HOME/code}"
 PRIVATE_DOTFILES="$SRC_DIR/wihli-dotfiles-private"
 if [ ! -d "$PRIVATE_DOTFILES" ]; then
     echo "Cloning private dotfiles..."
