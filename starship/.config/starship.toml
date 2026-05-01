@@ -5,9 +5,7 @@ format = """
 $directory\
 $git_branch\
 $git_status\
-$python\
-$nodejs\
-$rust\
+$time \
 $character"""
 
 # Faster - don't scan for languages not in use
@@ -25,17 +23,11 @@ style = "purple"
 format = '([$all_status$ahead_behind]($style) )'
 style = "red"
 
-[python]
-format = '[${pyenv_prefix}(${version} )(\($virtualenv\) )]($style)'
-style = "yellow"
-
-[nodejs]
-format = "[$version]($style) "
-style = "green"
-
-[rust]
-format = "[$version]($style) "
-style = "red"
+[time]
+disabled = false
+format = "[$time]($style)"
+style = "dimmed white"
+time_format = "%H:%M:%S"
 
 [character]
 success_symbol = "[>](green)"
