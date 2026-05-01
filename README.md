@@ -36,7 +36,18 @@ The intended split is:
 - Shared subagents: `subagents/.local/share/subagents/`
 - Private overlays: `$SRC_DIR/wihli-dotfiles-private/{claude,skills,subagents,...}`
 
+Treat repo paths as the source of truth. Installed home paths such as
+`~/.config/AGENTS.md`, `~/.local/share/skills/`, `~/.local/share/subagents/`,
+`~/.claude/skills/`, `~/.claude/agents/`, and `~/.codex/skills/` are generated
+targets managed by `install.sh` and Stow, not places to edit shared assets.
+
 `install.sh` stows the public repo first, overlays the private repo second, then links shared agent assets into the paths Claude and Codex expect.
+
+If `stow` reports a conflict for a shared skill or subagent, that usually means
+someone wrote a real file into one of those managed home paths. Move the change
+back into the repo source under `skills/.local/share/...` or
+`subagents/.local/share/...`, remove the unmanaged home-path file, then rerun
+`./install.sh`.
 
 ## Codespaces Setup
 

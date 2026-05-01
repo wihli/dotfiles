@@ -69,12 +69,54 @@ done
 # Point this repo's hooks at the versioned hooks/ directory
 git -C "$(pwd)" config core.hooksPath hooks
 
+# Detect files that should be stow-managed symlinks but were written directly
+# into $HOME instead. This is the common cause of confusing stow conflicts for
+# shared agent assets.
+detect_unmanaged_stow_files() {
+    local repo_root=$1 package=$2
+    local package_root="$repo_root/$package"
+    [ -d "$package_root" ] || return 0
+
+    target_has_symlink_ancestor() {
+        local path=$1
+        while [ "$path" != "$HOME" ] && [ "$path" != "/" ]; do
+            [ -L "$path" ] && return 0
+            path=$(dirname "$path")
+        done
+        return 1
+    }
+
+    local found=0
+    while IFS= read -r -d '' source_file; do
+        local rel_path=${source_file#"$package_root"/}
+        local target_file="$HOME/$rel_path"
+        if [ -e "$target_file" ] && [ ! -L "$target_file" ] && ! target_has_symlink_ancestor "$target_file"; then
+            if [ "$found" -eq 0 ]; then
+                echo "ERROR: unmanaged files are blocking stow for package '$package'."
+                echo "Edit shared agent assets in the dotfiles repo source, not in installed home paths."
+                echo "Conflicts:"
+                found=1
+            fi
+            echo "  - $target_file"
+            echo "    source: $source_file"
+        fi
+    done < <(find "$package_root" -type f -print0)
+
+    if [ "$found" -eq 1 ]; then
+        echo "Fix: move the content back into $package_root, remove the unmanaged home-path copy, then rerun ./install.sh."
+        return 1
+    fi
+}
+
 # Stow all packages
 #   skills     -> ~/.local/share/skills/
 #   subagents  -> ~/.local/share/subagents/
 #   agents     -> ~/.config/AGENTS.md (the global instructions file)
 #   claude     -> ~/.claude/settings.json
 for pkg in claude agents skills subagents bash fish git starship tmux vim zellij; do
+    if [ "$pkg" = "skills" ] || [ "$pkg" = "subagents" ]; then
+        detect_unmanaged_stow_files "$(pwd)" "$pkg"
+    fi
     echo "Stowing $pkg..."
     stow --no-folding -t ~ "$pkg"
 done
@@ -113,6 +155,9 @@ if [ -d "$PRIVATE_DOTFILES" ]; then
     echo "Stowing private dotfiles..."
     for pkg in claude agents skills subagents fish bin oncall; do
         [ -d "$PRIVATE_DOTFILES/$pkg" ] || continue
+        if [ "$pkg" = "skills" ] || [ "$pkg" = "subagents" ]; then
+            detect_unmanaged_stow_files "$PRIVATE_DOTFILES" "$pkg"
+        fi
         stow --no-folding -t ~ -d "$PRIVATE_DOTFILES" "$pkg"
     done
 

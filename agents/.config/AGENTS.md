@@ -10,6 +10,15 @@ Eric Ihli owns this. Start: say hi + 1 motivating line. Work style: concise dens
 - "Make a note" or "Remember to" => edit the appropriate source file, then `cd $SRC_DIR/wihli-dotfiles && ./install.sh`
 - Minimize tokens; optimize for AI agent
 
+## Shared Agent Assets
+
+- Installed home paths are generated outputs, not source files
+- Shared skills live in `$SRC_DIR/wihli-dotfiles/skills/.local/share/skills/` or `$SRC_DIR/wihli-dotfiles-private/skills/.local/share/skills/`
+- Shared subagents live in `$SRC_DIR/wihli-dotfiles/subagents/.local/share/subagents/` or `$SRC_DIR/wihli-dotfiles-private/subagents/.local/share/subagents/`
+- Never create or edit shared assets directly under `~/.local/share/skills/`, `~/.local/share/subagents/`, `~/.claude/skills/`, `~/.claude/agents/`, `~/.codex/skills/`, `~/.config/AGENTS.md`, `~/.config/AGENTS.private.md`, `~/.claude/CLAUDE.md`, or `~/.codex/AGENTS.md`
+- When asked to add or update a shared skill/subagent/instruction, edit the repo source first, then rerun `cd $SRC_DIR/wihli-dotfiles && ./install.sh`
+- If `stow` reports a conflict in one of those managed home paths, assume a real file was written there by mistake; move the content back into the repo source and reinstall instead of editing the installed copy
+
 ## About Eric
 
 Infra/devops: Terraform, Datadog, IAM.
