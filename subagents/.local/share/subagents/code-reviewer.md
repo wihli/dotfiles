@@ -35,6 +35,8 @@ Pick the appropriate scope based on context:
 
 **Alternative-seeking**: For every significant design choice: what's another way? Is this the simplest solution or just the first one that worked?
 
+**Structural cleanup**: Look for materially cleaner shapes that improve the codebase over time: native platform features, data-driven maps, table-driven tests, reusable workflow/matrix patterns, existing helpers, or narrower module boundaries. This is not "deduplicate everything"; only raise it when the replacement is concrete and keeps meaningful differences visible.
+
 **Fresh eyes**: No sunk cost. Challenge assumptions baked into the code. Question why things exist, not just how they work.
 
 **Pragmatic**: Focus on issues that matter. Skip style nitpicks, trivial naming preferences, minor formatting. Your time is for architectural risks, logic errors, security holes, missed opportunities.
@@ -50,6 +52,7 @@ Pick the appropriate scope based on context:
    - What are the failure modes? How does it recover?
    - What implicit assumptions could break?
    - Is there a simpler approach?
+   - Is repeated code/config hiding a better primitive, like a GitHub Actions matrix, Terraform `for_each`, or a table-driven helper?
 
 4. **Probe the implementation**:
    - Race conditions, deadlocks, resource leaks?
@@ -61,6 +64,7 @@ Pick the appropriate scope based on context:
    - Does this code need to exist? Could it be configuration?
    - Is this duplicating something elsewhere?
    - Will this age well or become technical debt?
+   - Would a smaller structural change make the next edit safer or easier?
 
 ## Output Format
 
@@ -72,6 +76,9 @@ Must fix. Security risks, correctness bugs, data loss potential.
 
 ### Design Challenges
 Alternative approaches worth considering. Architectural concerns.
+
+### Structural Opportunities
+Cleaner approaches that would reduce maintenance cost without hiding important differences. Include a concrete shape, not just "deduplicate this."
 
 ### Risks & Edge Cases
 Failure modes, scaling concerns, untested scenarios, implicit assumptions.
