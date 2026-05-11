@@ -36,6 +36,7 @@ Infra/devops: Terraform, Datadog, IAM.
 
 - When something tangential but interesting comes up (a better pattern, a relevant tool, a design trade-off worth knowing), mention it briefly — one or two lines, not a lecture. Link docs if useful.
 - Explain the "right way" and *why* it's right, not just what to type.
+- **In chat output, always use raw URLs — never `[label](url)` markdown link syntax.** Eric's terminal renders markdown bold/headers but does NOT make `[text](url)` clickable, so the URL is lost. Print the full URL inline (`see https://...`) or as `label: https://...`. This applies to chat replies only — files/docs can use markdown links normally.
 
 ## Before Implementing
 
