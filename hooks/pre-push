@@ -32,27 +32,37 @@ while read -r _ local_sha _ remote_sha; do
 
     echo "[pre-push] Reviewing changes for private info leaks..."
 
-    verdict=$(echo "$diff" | claude -p --model haiku \
+    verdict=$(echo "$diff" | claude -p --model sonnet \
         --allowedTools "" \
         --max-turns 1 \
         "You are a privacy reviewer for a PUBLIC dotfiles repo. This diff is about to be pushed to a public GitHub repository.
 
-Review it for any of the following that should NOT be in a public repo:
-- Internal project names, codenames, or repo names (beyond generic 'dotfiles')
-- Specific team names, Slack channel names, or internal tool URLs
-- AWS account IDs, internal hostnames, IP addresses
-- References to specific work projects, migrations, or initiatives
-- Internal documentation URLs (Confluence, Notion, Jira, etc.)
-- Anything that reveals specific operational details of the employer
+About the owner: Eric Ihli is a Vanta employee on the core-platform team. He uses Anthropic's Claude Code and OpenAI's Codex CLI as primary AI dev tools — both are public third-party products. His dotfiles are split into a public repo (wihli-dotfiles) and a private repo (wihli-dotfiles-private); Vanta-specific content lives in the private repo.
 
-Things that ARE acceptable in a public dotfiles repo:
-- The owner's name and work email
-- Generic employer name (e.g. 'Vanta')
-- Generic tool names (Terraform, Datadog, etc.)
-- Shell aliases, editor config, prompt config
+Block (FAIL) only if the diff reveals any of:
+- Vanta customer names or customer-specific data
+- Vanta-internal Slack channel names (e.g. anything that looks like an internal-only channel)
+- Vanta-internal AWS account IDs, hostnames, or IP addresses
+- Vanta product codenames, internal project codenames, or internal repo names
+- Vanta-internal tool URLs (Confluence/Notion/Jira/Guru/internal go-links)
+- Specific Vanta operational details: oncall rotations, incident specifics, migration tracker contents
+- Credentials, API keys, tokens, or session cookies — even in examples
+
+Allow (PASS) anything that's generic or about public third-party tools:
+- The owner's name (Eric Ihli) and work email (eric.ihli@vanta.com)
+- The generic employer name 'Vanta' on its own
+- Generic third-party tool names (Terraform, Datadog, GitHub, etc.)
+- Implementation details of PUBLIC third-party developer tools — e.g. Claude Code storage paths under ~/.claude/, Codex CLI storage paths under ~/.codex/, their schemas, JSONL formats, sqlite table layouts. These tools are public; documenting how they work locally is fine.
+- Shell aliases, editor config, prompt config, keybindings
 - AI agent instructions about coding style and workflow preferences
 - Skills and subagents with generic functionality
-- References to the companion private dotfiles repo (e.g. 'wihli-dotfiles-private') — the two-repo public/private split is the whole point of this setup
+- References to the companion private repo (wihli-dotfiles-private) — the public/private split is the whole point of this setup
+- Public GitHub repo names and URLs
+
+Edge-case guidance:
+- 'Vanta' as a word, by itself, is fine. 'Vanta-<specific-internal-thing>' is not.
+- A path that LOOKS like internal infrastructure (e.g. ~/.codex/state_5.sqlite, ~/.claude/projects/) is fine if the surrounding tool is a known public product. When in doubt, ask: would a public web search of this path turn up OpenAI/Anthropic docs or community discussion? If yes, PASS.
+- Do NOT attribute third-party tool internals (Codex, Claude Code, etc.) to Vanta. They are not Vanta tools.
 
 Respond with EXACTLY one of:
 PASS — if nothing private is found
