@@ -112,8 +112,10 @@ detect_unmanaged_stow_files() {
 #   skills     -> ~/.local/share/skills/
 #   subagents  -> ~/.local/share/subagents/
 #   agents     -> ~/.config/AGENTS.md (the global instructions file)
+#   bin        -> ~/.local/bin/ shared helper commands
 #   claude     -> ~/.claude/settings.json
-for pkg in claude agents skills subagents bash fish git starship tmux vim zellij; do
+#   codex      -> ~/.codex/hooks.json
+for pkg in bin claude codex agents skills subagents bash fish git starship tmux vim zellij; do
     if [ "$pkg" = "skills" ] || [ "$pkg" = "subagents" ]; then
         detect_unmanaged_stow_files "$(pwd)" "$pkg"
     fi

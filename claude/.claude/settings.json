@@ -91,7 +91,17 @@
         "hooks": [
           {
             "type": "command",
-            "command": "case $(uname) in Darwin) terminal-notifier -title 'Claude Code' -message 'Ready for input' -sound Glass ;; *) [ -n \"$DISPLAY\" ] && notify-send 'Claude Code' 'Ready for input' 2>/dev/null || true ;; esac"
+            "command": "command -v agent-notify-ready >/dev/null && agent-notify-ready 'Claude Code' || true"
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "command -v agent-notify-ready >/dev/null && agent-notify-ready --clear 'Claude Code' || true"
           }
         ]
       }

@@ -16,7 +16,9 @@ cd ~/dotfiles
 |---------|----------|
 | `agents` | Shared installed agent instructions (`~/.config/AGENTS.md`) |
 | `bash` | .bashrc |
+| `bin` | Shared helper commands in `~/.local/bin` |
 | `claude` | Claude-specific runtime settings |
+| `codex` | Codex-specific runtime hooks |
 | `fish` | Fish shell config |
 | `git` | .gitconfig |
 | `skills` | Shared agent skills in XDG layout |
@@ -31,7 +33,9 @@ cd ~/dotfiles
 The intended split is:
 
 - Shared instructions: `agents/.config/AGENTS.md`
+- Shared helper commands: `bin/.local/bin/`
 - Claude-specific config: `claude/.claude/settings.json`
+- Codex-specific hooks: `codex/.codex/hooks.json`
 - Shared skills: `skills/.local/share/skills/`
 - Shared subagents: `subagents/.local/share/subagents/`
 - Private overlays: `$SRC_DIR/wihli-dotfiles-private/{claude,skills,subagents,...}`

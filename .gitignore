@@ -1,4 +1,7 @@
 .env
 *.local
+!bin/.local/
+!bin/.local/bin/
+!bin/.local/bin/agent-notify-ready
 __pycache__/
 settings.local.json

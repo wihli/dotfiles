@@ -14,7 +14,9 @@ The install flow stows the public repo first, then overlays private packages whe
 ## Multi-Agent Layout
 
 - Shared installed agent instructions live at `agents/.config/AGENTS.md`
+- Shared helper commands live under `bin/.local/bin/`
 - Claude-specific runtime config lives under `claude/.claude/`
+- Codex-specific runtime hooks live under `codex/.codex/`
 - Shared skills live under `skills/.local/share/skills/`
 - Shared subagents live under `subagents/.local/share/subagents/`
 - Private-only Claude config, skills, and subagents live in the private repo

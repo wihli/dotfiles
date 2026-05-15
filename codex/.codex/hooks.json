@@ -1,0 +1,26 @@
+{
+  "hooks": {
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "command -v agent-notify-ready >/dev/null && agent-notify-ready Codex || true",
+            "timeout": 5
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "command -v agent-notify-ready >/dev/null && agent-notify-ready --clear Codex || true",
+            "timeout": 5
+          }
+        ]
+      }
+    ]
+  }
+}
