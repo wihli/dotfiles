@@ -1,0 +1,252 @@
+#!/usr/bin/env python3
+"""Copy Markdown to the macOS clipboard as rich HTML plus plain text."""
+
+from __future__ import annotations
+
+import argparse
+import ctypes
+import html
+import re
+import subprocess
+import sys
+from pathlib import Path
+
+
+FENCE_RE = re.compile(r"^\s*(```|~~~)\s*([A-Za-z0-9_+.-]*)\s*$")
+HEADING_RE = re.compile(r"^(#{1,6})\s+(.+?)\s*#*\s*$")
+UL_RE = re.compile(r"^\s*[-*+]\s+(.+)$")
+OL_RE = re.compile(r"^\s*\d+[.)]\s+(.+)$")
+
+
+def render_inline(text: str) -> str:
+    code_spans: list[str] = []
+
+    def stash_code(match: re.Match[str]) -> str:
+        code_spans.append(f"<code>{html.escape(match.group(2))}</code>")
+        return f"@@MDCLIPCODE{len(code_spans) - 1}@@"
+
+    text = re.sub(r"(`+)(.+?)\1", stash_code, text)
+    text = html.escape(text)
+
+    def link(match: re.Match[str]) -> str:
+        label = match.group(1)
+        url = html.escape(match.group(2), quote=True)
+        return f'<a href="{url}">{label}</a>'
+
+    text = re.sub(r"\[([^\]]+)\]\(([^)\s]+)(?:\s+&quot;[^&]*&quot;)?\)", link, text)
+    text = re.sub(r"\*\*(.+?)\*\*", r"<strong>\1</strong>", text)
+    text = re.sub(r"__(.+?)__", r"<strong>\1</strong>", text)
+    text = re.sub(r"~~(.+?)~~", r"<del>\1</del>", text)
+    text = re.sub(r"(?<!\*)\*(?!\s)(.+?)(?<!\s)\*(?!\*)", r"<em>\1</em>", text)
+    text = re.sub(r"(?<!_)_(?!\s)(.+?)(?<!\s)_(?!_)", r"<em>\1</em>", text)
+
+    for i, code in enumerate(code_spans):
+        text = text.replace(f"@@MDCLIPCODE{i}@@", code)
+    return text
+
+
+def split_table_row(line: str) -> list[str]:
+    line = line.strip()
+    if line.startswith("|"):
+        line = line[1:]
+    if line.endswith("|"):
+        line = line[:-1]
+    return [cell.strip() for cell in line.split("|")]
+
+
+def is_table_separator(line: str) -> bool:
+    cells = split_table_row(line)
+    return bool(cells) and all(re.fullmatch(r":?-{3,}:?", cell) for cell in cells)
+
+
+def is_block_start(lines: list[str], index: int) -> bool:
+    line = lines[index]
+    if not line.strip():
+        return True
+    if FENCE_RE.match(line) or HEADING_RE.match(line) or UL_RE.match(line) or OL_RE.match(line):
+        return True
+    if line.lstrip().startswith(">") or re.match(r"^\s*(-{3,}|\*{3,}|_{3,})\s*$", line):
+        return True
+    return index + 1 < len(lines) and "|" in line and is_table_separator(lines[index + 1])
+
+
+def render_table(lines: list[str], index: int) -> tuple[str, int]:
+    header = split_table_row(lines[index])
+    index += 2
+    rows: list[list[str]] = []
+    while index < len(lines) and "|" in lines[index].strip() and lines[index].strip():
+        rows.append(split_table_row(lines[index]))
+        index += 1
+
+    out = ["<table>", "<thead>", "<tr>"]
+    out.extend(f"<th>{render_inline(cell)}</th>" for cell in header)
+    out.extend(["</tr>", "</thead>"])
+    if rows:
+        out.append("<tbody>")
+        for row in rows:
+            out.append("<tr>")
+            out.extend(f"<td>{render_inline(cell)}</td>" for cell in row)
+            out.append("</tr>")
+        out.append("</tbody>")
+    out.append("</table>")
+    return "\n".join(out), index
+
+
+def render_markdown(markdown: str) -> str:
+    lines = markdown.replace("\r\n", "\n").replace("\r", "\n").split("\n")
+    blocks: list[str] = []
+    i = 0
+
+    while i < len(lines):
+        line = lines[i]
+        if not line.strip():
+            i += 1
+            continue
+
+        fence = FENCE_RE.match(line)
+        if fence:
+            marker, language = fence.groups()
+            code: list[str] = []
+            i += 1
+            while i < len(lines) and not re.match(rf"^\s*{re.escape(marker)}\s*$", lines[i]):
+                code.append(lines[i])
+                i += 1
+            i += 1 if i < len(lines) else 0
+            cls = f' class="language-{html.escape(language, quote=True)}"' if language else ""
+            blocks.append(f"<pre><code{cls}>{html.escape(chr(10).join(code))}</code></pre>")
+            continue
+
+        heading = HEADING_RE.match(line)
+        if heading:
+            level = len(heading.group(1))
+            blocks.append(f"<h{level}>{render_inline(heading.group(2))}</h{level}>")
+            i += 1
+            continue
+
+        if i + 1 < len(lines) and "|" in line and is_table_separator(lines[i + 1]):
+            table, i = render_table(lines, i)
+            blocks.append(table)
+            continue
+
+        if line.lstrip().startswith(">"):
+            quote_lines: list[str] = []
+            while i < len(lines) and lines[i].lstrip().startswith(">"):
+                quote_lines.append(re.sub(r"^\s*>\s?", "", lines[i]))
+                i += 1
+            blocks.append(f"<blockquote>{render_markdown(chr(10).join(quote_lines))}</blockquote>")
+            continue
+
+        if re.match(r"^\s*(-{3,}|\*{3,}|_{3,})\s*$", line):
+            blocks.append("<hr>")
+            i += 1
+            continue
+
+        list_match = UL_RE.match(line) or OL_RE.match(line)
+        if list_match:
+            tag = "ul" if UL_RE.match(line) else "ol"
+            item_re = UL_RE if tag == "ul" else OL_RE
+            items: list[str] = []
+            while i < len(lines):
+                item = item_re.match(lines[i])
+                if not item:
+                    break
+                items.append(f"<li>{render_inline(item.group(1))}</li>")
+                i += 1
+            blocks.append(f"<{tag}>\n" + "\n".join(items) + f"\n</{tag}>")
+            continue
+
+        paragraph: list[str] = []
+        while i < len(lines) and not is_block_start(lines, i):
+            paragraph.append(lines[i].strip())
+            i += 1
+        if paragraph:
+            blocks.append(f"<p>{render_inline(' '.join(paragraph))}</p>")
+        else:
+            i += 1
+
+    return "\n\n".join(blocks)
+
+
+def copy_plain(markdown: str) -> None:
+    subprocess.run(["pbcopy"], input=markdown, text=True, check=True)
+
+
+def ns_clipboard_set(html_fragment: str, plain_text: str) -> None:
+    if sys.platform != "darwin":
+        raise RuntimeError("rich clipboard copy requires macOS; use --stdout to print the generated HTML")
+
+    objc = ctypes.cdll.LoadLibrary("/usr/lib/libobjc.A.dylib")
+    ctypes.cdll.LoadLibrary("/System/Library/Frameworks/AppKit.framework/AppKit")
+
+    objc.objc_getClass.restype = ctypes.c_void_p
+    objc.objc_getClass.argtypes = [ctypes.c_char_p]
+    objc.sel_registerName.restype = ctypes.c_void_p
+    objc.sel_registerName.argtypes = [ctypes.c_char_p]
+
+    msg0 = ctypes.CFUNCTYPE(ctypes.c_void_p, ctypes.c_void_p, ctypes.c_void_p)(("objc_msgSend", objc))
+    msg_cstr = ctypes.CFUNCTYPE(ctypes.c_void_p, ctypes.c_void_p, ctypes.c_void_p, ctypes.c_char_p)(("objc_msgSend", objc))
+    msg_bool = ctypes.CFUNCTYPE(
+        ctypes.c_bool, ctypes.c_void_p, ctypes.c_void_p, ctypes.c_void_p, ctypes.c_void_p
+    )(("objc_msgSend", objc))
+    msg_ulong = ctypes.CFUNCTYPE(ctypes.c_ulong, ctypes.c_void_p, ctypes.c_void_p)(("objc_msgSend", objc))
+
+    def cls(name: str) -> ctypes.c_void_p:
+        return objc.objc_getClass(name.encode())
+
+    def sel(name: str) -> ctypes.c_void_p:
+        return objc.sel_registerName(name.encode())
+
+    ns_string = cls("NSString")
+
+    def nsstr(value: str) -> ctypes.c_void_p:
+        return msg_cstr(ns_string, sel("stringWithUTF8String:"), value.encode())
+
+    pasteboard = msg0(cls("NSPasteboard"), sel("generalPasteboard"))
+    if not pasteboard:
+        raise RuntimeError("could not access the macOS pasteboard; try again from a non-sandboxed GUI session")
+
+    msg_ulong(pasteboard, sel("clearContents"))
+    ok_plain = msg_bool(pasteboard, sel("setString:forType:"), nsstr(plain_text), nsstr("public.utf8-plain-text"))
+    ok_html = msg_bool(pasteboard, sel("setString:forType:"), nsstr(html_fragment), nsstr("public.html"))
+    if not (ok_plain and ok_html):
+        raise RuntimeError("macOS pasteboard rejected the generated clipboard data")
+
+
+def read_input(path: str | None) -> str:
+    if path:
+        return Path(path).read_text(encoding="utf-8")
+    if sys.stdin.isatty():
+        raise SystemExit("usage: mdclip FILE or markdown | mdclip")
+    return sys.stdin.read()
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description="Copy Markdown as rich HTML for pasting into Guru and other editors.")
+    parser.add_argument("file", nargs="?", help="Markdown file to copy. Reads stdin when omitted.")
+    parser.add_argument("--stdout", action="store_true", help="print generated HTML instead of copying it")
+    parser.add_argument("--plain", action="store_true", help="copy the raw Markdown as plain text")
+    args = parser.parse_args()
+
+    markdown = read_input(args.file)
+    if args.plain:
+        copy_plain(markdown)
+        return 0
+
+    html_fragment = render_markdown(markdown)
+    if args.stdout:
+        print(html_fragment)
+        return 0
+
+    ns_clipboard_set(html_fragment, markdown)
+    print("Copied Markdown as rich HTML.")
+    return 0
+
+
+if __name__ == "__main__":
+    try:
+        raise SystemExit(main())
+    except BrokenPipeError:
+        raise SystemExit(1)
+    except Exception as exc:
+        print(f"mdclip: {exc}", file=sys.stderr)
+        raise SystemExit(1)
