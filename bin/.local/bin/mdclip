@@ -20,26 +20,35 @@ OL_RE = re.compile(r"^\s*\d+[.)]\s+(.+)$")
 
 def render_inline(text: str) -> str:
     code_spans: list[str] = []
+    link_spans: list[str] = []
 
     def stash_code(match: re.Match[str]) -> str:
         code_spans.append(f"<code>{html.escape(match.group(2))}</code>")
         return f"@@MDCLIPCODE{len(code_spans) - 1}@@"
 
+    def stash_link(match: re.Match[str]) -> str:
+        label = html.escape(match.group(1))
+        url = html.escape(match.group(2), quote=True)
+        link_spans.append(f'<a href="{url}">{label}</a>')
+        return f"@@MDCLIPLINK{len(link_spans) - 1}@@"
+
     text = re.sub(r"(`+)(.+?)\1", stash_code, text)
+    text = re.sub(r'\[([^\]]+)\]\(([^)\s]+)(?:\s+"[^"]*")?\)', stash_link, text)
     text = html.escape(text)
 
-    def link(match: re.Match[str]) -> str:
-        label = match.group(1)
+    def bare_link(match: re.Match[str]) -> str:
         url = html.escape(match.group(2), quote=True)
-        return f'<a href="{url}">{label}</a>'
+        return f'{match.group(1)}<a href="{url}">{match.group(2)}</a>'
 
-    text = re.sub(r"\[([^\]]+)\]\(([^)\s]+)(?:\s+&quot;[^&]*&quot;)?\)", link, text)
+    text = re.sub(r'(^|[\s(])((?:https?://)[^\s<)]+)', bare_link, text)
     text = re.sub(r"\*\*(.+?)\*\*", r"<strong>\1</strong>", text)
     text = re.sub(r"__(.+?)__", r"<strong>\1</strong>", text)
     text = re.sub(r"~~(.+?)~~", r"<del>\1</del>", text)
     text = re.sub(r"(?<!\*)\*(?!\s)(.+?)(?<!\s)\*(?!\*)", r"<em>\1</em>", text)
     text = re.sub(r"(?<!_)_(?!\s)(.+?)(?<!\s)_(?!_)", r"<em>\1</em>", text)
 
+    for i, link in enumerate(link_spans):
+        text = text.replace(f"@@MDCLIPLINK{i}@@", link)
     for i, code in enumerate(code_spans):
         text = text.replace(f"@@MDCLIPCODE{i}@@", code)
     return text
@@ -68,6 +77,14 @@ def is_block_start(lines: list[str], index: int) -> bool:
     if line.lstrip().startswith(">") or re.match(r"^\s*(-{3,}|\*{3,}|_{3,})\s*$", line):
         return True
     return index + 1 < len(lines) and "|" in line and is_table_separator(lines[index + 1])
+
+
+def render_code_block(lines: list[str], language: str) -> str:
+    cls = f' class="language-{html.escape(language, quote=True)}"' if language else ""
+    # Guru's paste pipeline collapses literal newlines inside <pre><code>.
+    # Explicit <br> elements preserve line breaks after paste.
+    code = "<br>\n".join(html.escape(line) for line in lines)
+    return f"<pre><code{cls}>{code}</code></pre>"
 
 
 def render_table(lines: list[str], index: int) -> tuple[str, int]:
@@ -112,8 +129,7 @@ def render_markdown(markdown: str) -> str:
                 code.append(lines[i])
                 i += 1
             i += 1 if i < len(lines) else 0
-            cls = f' class="language-{html.escape(language, quote=True)}"' if language else ""
-            blocks.append(f"<pre><code{cls}>{html.escape(chr(10).join(code))}</code></pre>")
+            blocks.append(render_code_block(code, language))
             continue
 
         heading = HEADING_RE.match(line)
