@@ -163,6 +163,16 @@ if [ -d "$PRIVATE_DOTFILES" ]; then
         stow --no-folding -t ~ -d "$PRIVATE_DOTFILES" "$pkg"
     done
 
+    # Codex approval rules are read before tool execution and symlinked rules are
+    # not picked up reliably, so install the private source as a regular file.
+    PRIVATE_CODEX_RULES="$PRIVATE_DOTFILES/codex/.codex/rules/default.rules"
+    if [ -f "$PRIVATE_CODEX_RULES" ]; then
+        echo "Installing private Codex rules..."
+        mkdir -p "$HOME/.codex/rules"
+        rm -f "$HOME/.codex/rules/default.rules"
+        cp "$PRIVATE_CODEX_RULES" "$HOME/.codex/rules/default.rules"
+    fi
+
     # Merge private settings into public settings.json
     PRIVATE_SETTINGS="$HOME/.claude/settings-private.json"
     PUBLIC_SETTINGS="$HOME/.claude/settings.json"
