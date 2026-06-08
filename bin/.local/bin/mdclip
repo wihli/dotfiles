@@ -14,8 +14,14 @@ from pathlib import Path
 
 FENCE_RE = re.compile(r"^\s*(```|~~~)\s*([A-Za-z0-9_+.-]*)\s*$")
 HEADING_RE = re.compile(r"^(#{1,6})\s+(.+?)\s*#*\s*$")
-UL_RE = re.compile(r"^\s*[-*+]\s+(.+)$")
-OL_RE = re.compile(r"^\s*\d+[.)]\s+(.+)$")
+LIST_RE = re.compile(r"^(\s*)([-*+]|\d+[.)])\s+(.+)$")
+REF_DEF_RE = re.compile(r'^\s*\[([^\]]+)\]:\s+(\S+)(?:\s+\S.*)?$')
+HTML_COMMENT_RE = re.compile(r"^\s*<!--.*-->\s*$")
+
+# Reference-style link definitions ([label]: url), collected before rendering so
+# render_inline can resolve [text][label] / [text][] / [label]. Keys are lowercased
+# (CommonMark labels are case-insensitive). Module-level: mdclip runs once per process.
+_REF_LINKS: dict[str, str] = {}
 
 
 def render_inline(text: str) -> str:
@@ -32,8 +38,24 @@ def render_inline(text: str) -> str:
         link_spans.append(f'<a href="{url}">{label}</a>')
         return f"@@MDCLIPLINK{len(link_spans) - 1}@@"
 
+    def stash_ref(label: str, ref: str) -> str | None:
+        url = _REF_LINKS.get(ref.strip().lower())
+        if url is None:  # not a known reference — leave the brackets as literal text
+            return None
+        link_spans.append(f'<a href="{html.escape(url, quote=True)}">{html.escape(label)}</a>')
+        return f"@@MDCLIPLINK{len(link_spans) - 1}@@"
+
+    def sub_full_ref(match: re.Match[str]) -> str:  # [text][label]
+        return stash_ref(match.group(1), match.group(2)) or match.group(0)
+
+    def sub_shortcut_ref(match: re.Match[str]) -> str:  # [label] or [text][]
+        return stash_ref(match.group(1), match.group(1)) or match.group(0)
+
     text = re.sub(r"(`+)(.+?)\1", stash_code, text)
     text = re.sub(r'\[([^\]]+)\]\(([^)\s]+)(?:\s+"[^"]*")?\)', stash_link, text)
+    text = re.sub(r"\[([^\]]+)\]\[([^\]]+)\]", sub_full_ref, text)
+    text = re.sub(r"\[([^\]]+)\]\[\]", sub_shortcut_ref, text)
+    text = re.sub(r"\[([^\]]+)\](?![\(\[:])", sub_shortcut_ref, text)
     text = html.escape(text)
 
     def bare_link(match: re.Match[str]) -> str:
@@ -45,12 +67,19 @@ def render_inline(text: str) -> str:
     text = re.sub(r"__(.+?)__", r"<strong>\1</strong>", text)
     text = re.sub(r"~~(.+?)~~", r"<del>\1</del>", text)
     text = re.sub(r"(?<!\*)\*(?!\s)(.+?)(?<!\s)\*(?!\*)", r"<em>\1</em>", text)
-    text = re.sub(r"(?<!_)_(?!\s)(.+?)(?<!\s)_(?!_)", r"<em>\1</em>", text)
+    text = re.sub(r"(?<![\w_])_(?!\s)(.+?)(?<!\s)_(?![\w_])", r"<em>\1</em>", text)
 
     for i, link in enumerate(link_spans):
         text = text.replace(f"@@MDCLIPLINK{i}@@", link)
     for i, code in enumerate(code_spans):
         text = text.replace(f"@@MDCLIPCODE{i}@@", code)
+
+    # Slack's HTML paste collapses a lone space between two adjacent inline elements
+    # (e.g. "</strong> <code>" or "</code> <a>"), gluing the tokens together
+    # ("17 / 17regenerateAiOnboardingWorkflow"). A non-breaking space survives the paste.
+    text = re.sub(
+        r"(</(?:code|strong|em|del|a)>) (?=<(?:code|strong|em|del|a)[ >])", r"\1&nbsp;", text
+    )
     return text
 
 
@@ -72,18 +101,99 @@ def is_block_start(lines: list[str], index: int) -> bool:
     line = lines[index]
     if not line.strip():
         return True
-    if FENCE_RE.match(line) or HEADING_RE.match(line) or UL_RE.match(line) or OL_RE.match(line):
+    if FENCE_RE.match(line) or HEADING_RE.match(line) or LIST_RE.match(line):
         return True
     if line.lstrip().startswith(">") or re.match(r"^\s*(-{3,}|\*{3,}|_{3,})\s*$", line):
         return True
     return index + 1 < len(lines) and "|" in line and is_table_separator(lines[index + 1])
 
 
+def indent_width(line: str) -> int:
+    indent = line[: len(line) - len(line.lstrip(" \t"))]
+    return len(indent.expandtabs(4))
+
+
+def list_match(line: str) -> tuple[int, str, str] | None:
+    match = LIST_RE.match(line)
+    if not match:
+        return None
+    indent, marker, text = match.groups()
+    tag = "ul" if marker in {"-", "*", "+"} else "ol"
+    return len(indent.expandtabs(4)), tag, text
+
+
+def render_list(lines: list[str], index: int) -> tuple[str, int]:
+    first = list_match(lines[index])
+    if first is None:
+        raise ValueError("render_list called at a non-list line")
+
+    base_indent, tag, _ = first
+    items: list[str] = []
+
+    while index < len(lines):
+        current = list_match(lines[index])
+        if current is None:
+            break
+
+        indent, current_tag, text = current
+        if indent != base_indent or current_tag != tag:
+            break
+
+        text_parts = [text]
+        child_blocks: list[str] = []
+        index += 1
+
+        while index < len(lines):
+            line = lines[index]
+            if not line.strip():
+                lookahead = index + 1
+                while lookahead < len(lines) and not lines[lookahead].strip():
+                    lookahead += 1
+                if lookahead < len(lines):
+                    next_list = list_match(lines[lookahead])
+                    if next_list is not None:
+                        next_indent, next_tag, _ = next_list
+                        if next_indent == base_indent and next_tag == tag:
+                            index = lookahead
+                            break
+                        if next_indent > base_indent:
+                            nested_html, index = render_list(lines, lookahead)
+                            child_blocks.append(nested_html)
+                            continue
+                break
+
+            nested = list_match(line)
+            if nested is not None:
+                nested_indent, _, _ = nested
+                if nested_indent > base_indent:
+                    nested_html, index = render_list(lines, index)
+                    child_blocks.append(nested_html)
+                    continue
+                break
+
+            line_indent = indent_width(line)
+            if line_indent > base_indent:
+                text_parts.append(line.strip())
+                index += 1
+                continue
+
+            break
+
+        content = render_inline(" ".join(text_parts))
+        if child_blocks:
+            content += "\n" + "\n".join(child_blocks)
+        items.append(f"<li>{content}</li>")
+
+    return f"<{tag}>\n" + "\n".join(items) + f"\n</{tag}>", index
+
+
 def render_code_block(lines: list[str], language: str) -> str:
     cls = f' class="language-{html.escape(language, quote=True)}"' if language else ""
-    # Guru's paste pipeline collapses literal newlines inside <pre><code>.
-    # Explicit <br> elements preserve line breaks after paste.
-    code = "<br>\n".join(html.escape(line) for line in lines)
+    # Use <br> alone for line breaks. Guru's paste pipeline collapses literal
+    # newlines inside <pre><code>, so a <br> is needed there; but standard renderers
+    # (Slack, browsers) treat BOTH a literal "\n" in <pre> and a <br> as breaks, so
+    # "<br>\n" double-spaced every line. A bare <br> renders one break everywhere.
+    code = "<br>".join(html.escape(line) for line in lines)
     return f"<pre><code{cls}>{code}</code></pre>"
 
 
@@ -111,6 +221,20 @@ def render_table(lines: list[str], index: int) -> tuple[str, int]:
 
 def render_markdown(markdown: str) -> str:
     lines = markdown.replace("\r\n", "\n").replace("\r", "\n").split("\n")
+
+    # Collect and strip reference-link definitions and full-line HTML comments so
+    # they resolve links instead of leaking as literal text at the bottom.
+    kept: list[str] = []
+    for line in lines:
+        ref_def = REF_DEF_RE.match(line)
+        if ref_def:
+            _REF_LINKS[ref_def.group(1).strip().lower()] = ref_def.group(2)
+            continue
+        if HTML_COMMENT_RE.match(line):
+            continue
+        kept.append(line)
+    lines = kept
+
     blocks: list[str] = []
     i = 0
 
@@ -157,18 +281,9 @@ def render_markdown(markdown: str) -> str:
             i += 1
             continue
 
-        list_match = UL_RE.match(line) or OL_RE.match(line)
-        if list_match:
-            tag = "ul" if UL_RE.match(line) else "ol"
-            item_re = UL_RE if tag == "ul" else OL_RE
-            items: list[str] = []
-            while i < len(lines):
-                item = item_re.match(lines[i])
-                if not item:
-                    break
-                items.append(f"<li>{render_inline(item.group(1))}</li>")
-                i += 1
-            blocks.append(f"<{tag}>\n" + "\n".join(items) + f"\n</{tag}>")
+        if list_match(line):
+            list_html, i = render_list(lines, i)
+            blocks.append(list_html)
             continue
 
         paragraph: list[str] = []
