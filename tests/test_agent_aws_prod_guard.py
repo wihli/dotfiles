@@ -59,8 +59,14 @@ class AgentAwsProdGuardTest(unittest.TestCase):
         *,
         env: dict[str, str] | None = None,
         tool_name: str = "Bash",
+        tool_input: dict[str, object] | None = None,
     ) -> subprocess.CompletedProcess[str]:
-        payload = {"tool_name": tool_name, "tool_input": {"command": command}}
+        payload = {
+            "tool_name": tool_name,
+            "tool_input": (
+                tool_input if tool_input is not None else {"command": command}
+            ),
+        }
         return subprocess.run(
             [sys.executable, str(SCRIPT), "--agent", "test"],
             input=json.dumps(payload),
@@ -78,6 +84,17 @@ class AgentAwsProdGuardTest(unittest.TestCase):
         output = json.loads(result.stdout)
         self.assertEqual(output["permissionDecision"], "deny")
         self.assertIn("production profile pattern", output["permissionDecisionReason"])
+        self.assertIn("production profile pattern", result.stderr)
+        self.assertIn(
+            "Do not try to circumvent this failure",
+            output["permissionDecisionReason"],
+        )
+
+    def test_allows_non_risky_command_when_profile_name_is_prod(self) -> None:
+        result = self.run_hook("python3 -c 'print(1)'", env={"AWS_PROFILE": "prod"})
+
+        self.assertEqual(result.returncode, 0)
+        self.assertEqual(result.stdout, "")
 
     def test_allows_risky_command_when_profile_name_is_safe(self) -> None:
         result = self.run_hook("terraform plan", env={"AWS_PROFILE": "staging"})
@@ -103,6 +120,14 @@ class AgentAwsProdGuardTest(unittest.TestCase):
         self.assertEqual(result.returncode, 2)
         output = json.loads(result.stdout)
         self.assertEqual(output["permissionDecision"], "deny")
+
+    def test_blocks_shell_wrapped_obvious_tool_when_prod(self) -> None:
+        result = self.run_hook("bash -lc 'aws s3 ls'", env={"AWS_PROFILE": "prod"})
+
+        self.assertEqual(result.returncode, 2)
+        output = json.loads(result.stdout)
+        self.assertEqual(output["permissionDecision"], "deny")
+        self.assertIn("Do not try to circumvent this failure", result.stderr)
 
     def test_blocks_prod_profile_selected_inside_command(self) -> None:
         result = self.run_hook("aws-vault exec prod -- terraform plan")
@@ -131,8 +156,8 @@ class AgentAwsProdGuardTest(unittest.TestCase):
             "PATH": f"{bin_dir}:{os.environ.get('PATH', '')}",
         }
 
-        first = self.run_hook("python3 -c 'print(1)'", env=env)
-        second = self.run_hook("python3 -c 'print(1)'", env=env)
+        first = self.run_hook("terraform plan", env=env)
+        second = self.run_hook("terraform plan", env=env)
 
         self.assertEqual(first.returncode, 2)
         self.assertEqual(second.returncode, 2)
@@ -140,6 +165,17 @@ class AgentAwsProdGuardTest(unittest.TestCase):
 
     def test_ignores_non_command_tool(self) -> None:
         result = self.run_hook("", tool_name="Read", env={"AWS_PROFILE": "prod"})
+
+        self.assertEqual(result.returncode, 0)
+        self.assertEqual(result.stdout, "")
+
+    def test_ignores_non_command_tool_with_input_field(self) -> None:
+        result = self.run_hook(
+            "",
+            tool_name="apply_patch",
+            tool_input={"input": "*** Begin Patch\n*** End Patch\n"},
+            env={"AWS_PROFILE": "prod"},
+        )
 
         self.assertEqual(result.returncode, 0)
         self.assertEqual(result.stdout, "")

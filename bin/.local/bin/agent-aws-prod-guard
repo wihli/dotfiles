@@ -20,6 +20,9 @@ from typing import Any
 
 EXIT_ALLOW = 0
 EXIT_BLOCK = 2
+CIRCUMVENTION_WARNING = (
+    "Do not try to circumvent this failure; it is there for a reason."
+)
 
 DEFAULT_CONFIG: dict[str, Any] = {
     "production_account_ids": [],
@@ -94,26 +97,22 @@ DEFAULT_CONFIG: dict[str, Any] = {
         "serverless *",
         "* sls *",
         "sls *",
-        "python *",
-        "python3 *",
-        "node *",
-        "npm *",
-        "npx *",
-        "yarn *",
-        "pnpm *",
-        "bun *",
-        "deno *",
-        "ruby *",
-        "perl *",
-        "bash *",
-        "sh *",
-        "zsh *",
-        "just *",
-        "make *",
-        "go run *",
-        "docker *",
         "kubectl *",
         "helm *",
+    ],
+    "risky_command_tools": [
+        "aws",
+        "aws-vault",
+        "terraform",
+        "tofu",
+        "terragrunt",
+        "cdk",
+        "pulumi",
+        "sam",
+        "serverless",
+        "sls",
+        "kubectl",
+        "helm",
     ],
     "cache_ttl_seconds": 900,
     "allow_sts_fallback": True,
@@ -171,10 +170,13 @@ def command_from_tool(data: dict[str, Any]) -> tuple[str, str]:
     if not isinstance(tool_input, dict):
         return tool_name, ""
 
-    for key in ("command", "cmd", "shell_command", "input"):
+    for key in ("command", "cmd", "shell_command"):
         value = tool_input.get(key)
         if isinstance(value, str):
             return tool_name, value
+    value = tool_input.get("input")
+    if isinstance(value, str) and is_command_tool(tool_name, ""):
+        return tool_name, value
     return tool_name, ""
 
 
@@ -210,6 +212,15 @@ def has_shell_control_operator(command: str) -> bool:
     return any(token in command for token in (";", "&&", "||", "|", "`", "$("))
 
 
+def command_contains_tool(command: str, tools: list[str]) -> bool:
+    command_delimiter = r"(^|[\s;&|`'\"($(/])"
+    token_end = r"(?=$|[\s;&|`'\"),/])"
+    for tool in tools:
+        if re.search(command_delimiter + re.escape(tool) + token_end, command):
+            return True
+    return False
+
+
 def risky_command(command: str, config: dict[str, Any]) -> bool:
     compact = compact_command(command)
     padded = f" {compact} "
@@ -217,6 +228,8 @@ def risky_command(command: str, config: dict[str, Any]) -> bool:
     if direct_profile and matches_any(
         direct_profile, config["production_profile_patterns"]
     ):
+        return True
+    if command_contains_tool(compact, config.get("risky_command_tools", [])):
         return True
     return matches_any(compact, config["risky_command_patterns"]) or matches_any(
         padded, config["risky_command_patterns"]
@@ -519,6 +532,8 @@ def log_event(event: str, detail: str) -> None:
 
 
 def deny(reason: str) -> int:
+    reason = f"{reason} {CIRCUMVENTION_WARNING}"
+    print(reason, file=sys.stderr)
     print(
         json.dumps(
             {
@@ -552,7 +567,7 @@ def main() -> int:
     local = local_identity(command, config)
     is_risky = risky_command(command, config)
 
-    if local.state == "prod":
+    if local.state == "prod" and is_risky:
         return deny(
             f"AWS prod guard: refusing {tool_name or 'tool'} command while {local.reason}"
             f" (profile={local.profile or 'unknown'}, account={local.account_id or 'unknown'})."
