@@ -136,3 +136,32 @@ def test_mutation_allowed_when_read_only_disabled_on_dev():
         cfg,
         ambient=cfg_amb,
     )[0] == "deny"
+
+
+# --- command position: mentions must NOT trip; invocations must ------------ #
+@pytest.mark.parametrize("command", [
+    'git commit -m "delete stale gcloud cache"',
+    'git commit -m "bump bq and gsutil helpers"',
+    "grep -rn gcloud .",
+    "grep -rn production-432610 .",
+    'echo "run: gcloud compute instances delete foo"',
+    "rg 'kubectl delete' notes.md",
+    # `|` inside a quoted regex alternation must not read as a shell pipe:
+    "grep -oE '(terraform|gcloud|kubectl|gsutil)' log.md",
+    'jq -r ".cmd" run.json | grep gcloud',
+], ids=lambda c: c[:26])
+def test_mentions_are_not_invocations(command):
+    # tools merely referenced in args/messages/patterns are never a gcp op,
+    # even with a hostile ambient identity — the guard must not fire.
+    assert not is_denied(command, amb=ambient(project="production-432610", kube="prod-gke"))
+
+
+@pytest.mark.parametrize("command", [
+    'zsh -lc "gcloud compute instances delete foo --project production-432610"',
+    'bash -c "gcloud compute instances list --project production-432610"',
+    "CLOUDSDK_CORE_PROJECT=production-432610 gcloud compute instances list",
+    "echo x | gcloud compute instances delete foo --project dev-env-430408",
+    "sudo gcloud compute instances delete foo --project dev-env-430408",
+], ids=lambda c: c.split()[0])
+def test_real_invocations_still_blocked(command):
+    assert is_denied(command, amb=ambient(project="dev-env-430408", kube="dev-gke"))
