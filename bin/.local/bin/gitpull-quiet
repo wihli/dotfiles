@@ -1,0 +1,33 @@
+#!/usr/bin/env bash
+# Quiet git pull: fast-forward only, prune stale remotes, suppress the usual
+# churn. Prints one concise result line; shows full output only on error.
+# Extra args pass through to `git pull` (e.g. gitpull-quiet origin main).
+#
+# Motivation: plain `git pull` (even with fetch --prune) is noisy on repos with
+# frequent remote ref churn. This keeps the signal (did HEAD move?) and drops
+# the noise.
+
+set -uo pipefail
+
+if ! git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+  echo "not a git repository" >&2
+  exit 1
+fi
+
+before="$(git rev-parse --quiet --verify HEAD 2>/dev/null || echo none)"
+out="$(git -c advice.detachedHead=false -c advice.skippedCherryPicks=false \
+        -c pull.rebase=false pull --ff-only --prune --quiet "$@" 2>&1)"
+rc=$?
+after="$(git rev-parse --quiet --verify HEAD 2>/dev/null || echo none)"
+
+if [ "$rc" -ne 0 ]; then
+  [ -n "$out" ] && echo "$out" >&2
+  exit "$rc"
+fi
+
+if [ "$before" = "$after" ]; then
+  echo "already up to date"
+else
+  n="$(git rev-list --count "$before..$after" 2>/dev/null || echo '?')"
+  echo "pulled $n commit(s): ${before:0:9}..${after:0:9}"
+fi

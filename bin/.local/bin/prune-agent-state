@@ -1,0 +1,61 @@
+#!/usr/bin/env bash
+# Prune old agent-generated state artifacts (PR reviews, alert investigations,
+# etc.) that accumulate under $XDG_STATE_HOME with no rotation.
+#
+# DRY-RUN BY DEFAULT — prints what would be deleted and deletes nothing until
+# you pass --apply. Deletion is irreversible, so the gate is deliberate.
+#
+# Usage:
+#   prune-agent-state [--days N] [--apply] [--dir PATH ...]
+#     --days N   delete files older than N days (default 90)
+#     --apply    actually delete (default: dry-run)
+#     --dir P    add a directory to prune (repeatable); defaults below
+
+set -uo pipefail
+
+DAYS=90
+APPLY=0
+STATE="${XDG_STATE_HOME:-$HOME/.local/state}"
+DIRS=()
+
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --days) DAYS="$2"; shift 2 ;;
+    --apply) APPLY=1; shift ;;
+    --dir) DIRS+=("$2"); shift 2 ;;
+    -h|--help) sed -n '2,13p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
+    *) echo "Unknown arg: $1" >&2; exit 1 ;;
+  esac
+done
+
+if [ "${#DIRS[@]}" -eq 0 ]; then
+  DIRS=(
+    "$STATE/pr-monitor/reviews"
+    "$STATE/monitor-alerts/investigations"
+    "$STATE/incident-investigations"
+    "$STATE/agent-gcp-prod-guard"
+    "$STATE/agent-aws-prod-guard"
+  )
+fi
+
+total=0
+for d in "${DIRS[@]}"; do
+  [ -d "$d" ] || continue
+  # -mtime +DAYS = strictly older than DAYS days
+  mapfile -t old < <(find "$d" -type f -mtime "+$DAYS" 2>/dev/null)
+  n="${#old[@]}"
+  [ "$n" -eq 0 ] && continue
+  total=$((total + n))
+  echo "$d: $n file(s) older than ${DAYS}d"
+  if [ "$APPLY" = 1 ]; then
+    printf '%s\0' "${old[@]}" | xargs -0 rm -f
+    echo "  deleted $n"
+  fi
+done
+
+if [ "$total" -eq 0 ]; then
+  echo "nothing older than ${DAYS}d."
+elif [ "$APPLY" = 0 ]; then
+  echo "DRY RUN — $total file(s) would be deleted. Re-run with --apply to delete."
+fi
+exit 0
