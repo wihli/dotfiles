@@ -1,0 +1,85 @@
+#!/usr/bin/env bash
+# how — quick cheatsheet lookup for setup/commands you run rarely and forget.
+# The point: show the *commands* (not run a canned recipe) so you can deviate.
+#
+# Usage:
+#   how                     list all topics
+#   how <query...>          show the best-matching cheatsheet (fuzzy keyword)
+#   how -l | --list         list topics
+#
+# Cheatsheets are markdown files, searched in this order (first basename wins):
+#   $CHEATSHEETS_DIR
+#   ~/.local/share/cheatsheets
+#   $SRC_DIR/wihli-dotfiles-private/cheatsheets   (SRC_DIR defaults to ~/code)
+#   $SRC_DIR/wihli-dotfiles/cheatsheets
+# Add one: drop `some-topic.md` in a dir. First line `# Title`; optional
+# `<!-- keywords: extra match terms -->` line to widen matching.
+
+set -uo pipefail
+SRC_DIR="${SRC_DIR:-$HOME/code}"
+
+dirs=()
+[ -n "${CHEATSHEETS_DIR:-}" ] && dirs+=("$CHEATSHEETS_DIR")
+dirs+=(
+  "$HOME/.local/share/cheatsheets"
+  "$SRC_DIR/wihli-dotfiles-private/cheatsheets"
+  "$SRC_DIR/wihli-dotfiles/cheatsheets"
+)
+
+declare -a files=()
+declare -A seen=()
+for d in "${dirs[@]}"; do
+  [ -d "$d" ] || continue
+  while IFS= read -r f; do
+    b=$(basename "$f")
+    [ -n "${seen[$b]:-}" ] && continue
+    seen[$b]=1
+    files+=("$f")
+  done < <(find "$d" -maxdepth 1 -name '*.md' 2>/dev/null | sort)
+done
+
+if [ "${#files[@]}" -eq 0 ]; then
+  echo "how: no cheatsheets found. Add *.md under ${dirs[1]} or set \$CHEATSHEETS_DIR." >&2
+  exit 1
+fi
+
+title()    { head -1 "$1" | sed 's/^#* *//'; }
+keywords() { grep -m1 '<!-- keywords:' "$1" 2>/dev/null | sed 's/.*keywords: *//; s/ *-->.*//'; }
+haystack() { printf '%s %s %s' "$(basename "$1" .md)" "$(title "$1")" "$(keywords "$1")" | tr 'A-Z' 'a-z'; }
+render() {
+  local body; body=$(grep -v '<!-- keywords:' "$1")
+  if command -v glow >/dev/null; then printf '%s\n' "$body" | glow -
+  elif command -v bat >/dev/null; then printf '%s\n' "$body" | bat --style=plain --language=md --paging=never
+  else printf '%s\n' "$body"; fi
+}
+
+list() {
+  echo "Topics — how <query>:"
+  for f in "${files[@]}"; do printf '  %-22s %s\n' "$(basename "$f" .md)" "$(title "$f")"; done
+}
+
+case "${1:-}" in
+  "" | -l | --list) list; exit 0 ;;
+  -h | --help) sed -n '2,15p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
+esac
+
+query=$(printf '%s' "$*" | tr 'A-Z' 'a-z')
+best=0
+declare -a matches=()
+for f in "${files[@]}"; do
+  h=$(haystack "$f")
+  score=0
+  for w in $query; do case "$h" in *"$w"*) score=$((score + 1)) ;; esac; done
+  [ "$score" -eq 0 ] && continue
+  if [ "$score" -gt "$best" ]; then best=$score; matches=("$f")
+  elif [ "$score" -eq "$best" ]; then matches+=("$f"); fi
+done
+
+if [ "${#matches[@]}" -eq 0 ]; then
+  echo "how: nothing matched '$*'." >&2; echo >&2; list; exit 1
+elif [ "${#matches[@]}" -eq 1 ]; then
+  render "${matches[0]}"
+else
+  echo "Multiple matches for '$*' — pick one:"
+  for f in "${matches[@]}"; do printf '  %-22s %s\n' "$(basename "$f" .md)" "$(title "$f")"; done
+fi
