@@ -75,23 +75,6 @@
     "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1"
   },
   "hooks": {
-    "PreToolUse": [
-      {
-        "matcher": "Bash",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "command -v agent-aws-prod-guard >/dev/null || exit 0; agent-aws-prod-guard --agent claude",
-            "timeout": 3
-          },
-          {
-            "type": "command",
-            "command": "command -v agent-gcp-prod-guard >/dev/null || exit 0; agent-gcp-prod-guard --agent claude",
-            "timeout": 3
-          }
-        ]
-      }
-    ],
     "PostToolUse": [
       {
         "matcher": "Edit|Write",

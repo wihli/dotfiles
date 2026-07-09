@@ -38,20 +38,26 @@ The intended split is:
 - Codex-specific hooks: `codex/.codex/hooks.json`
 - Shared skills: `skills/.local/share/skills/`
 - Shared subagents: `subagents/.local/share/subagents/`
-- Private overlays: `$SRC_DIR/wihli-dotfiles-private/{claude,skills,subagents,...}`
+- Private overlays: `$SRC_DIR/wihli-dotfiles-private/{claude,codex,skills,subagents,...}`
 
 Treat repo paths as the source of truth. Installed home paths such as
 `~/.config/AGENTS.md`, `~/.local/share/skills/`, `~/.local/share/subagents/`,
 `~/.claude/skills/`, `~/.claude/agents/`, and `~/.codex/skills/` are generated
 targets managed by `install.sh` and Stow, not places to edit shared assets.
 
-`install.sh` stows the public repo first, overlays the private repo second, then links shared agent assets into the paths Claude and Codex expect.
+`install.sh` stows the public repo first, overlays the private repo second,
+merges private Claude settings and Codex hook fragments into their public base
+files, then links shared agent assets into the paths Claude and Codex expect.
 
 If `stow` reports a conflict for a shared skill or subagent, that usually means
 someone wrote a real file into one of those managed home paths. Move the change
 back into the repo source under `skills/.local/share/...` or
 `subagents/.local/share/...`, remove the unmanaged home-path file, then rerun
 `./install.sh`.
+
+The installer also removes broken `~/.local/bin` symlinks that still point into
+this public repo, allowing a command to move cleanly into the private overlay.
+Python `__pycache__` directories are ignored by Stow.
 
 ## Codespaces Setup
 
