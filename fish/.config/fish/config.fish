@@ -77,11 +77,6 @@ if type -q zoxide
     zoxide init fish | source
 end
 
-# === bat (better cat) ===
-if type -q bat
-    abbr cat "bat"
-end
-
 # === Emacs from MacPorts ===
 if test -f /Applications/MacPorts/Emacs.app/Contents/MacOS/Emacs
     alias emacs '/Applications/MacPorts/Emacs.app/Contents/MacOS/Emacs'
