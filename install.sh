@@ -278,6 +278,53 @@ ensure_link() {
     echo "Linked $link -> $target"
 }
 
+# Stow leaves empty skill directories behind when a shared skill is removed.
+# A valid skill always has SKILL.md, so prune only empty directories.
+remove_empty_skill_dirs() {
+    local skills_dir=$1
+    [ -d "$skills_dir" ] || return 0
+
+    for skill_dir in "$skills_dir"/*; do
+        [ -d "$skill_dir" ] && [ ! -L "$skill_dir" ] || continue
+        [ -f "$skill_dir/SKILL.md" ] && continue
+        if [ -z "$(find "$skill_dir" -mindepth 1 -print -quit)" ]; then
+            echo "Removing empty skill directory $skill_dir..."
+            rmdir "$skill_dir"
+        fi
+    done
+}
+
+# Stow can leave dangling file links inside a former skill directory. Remove
+# only those broken links before checking whether the directory is empty.
+remove_stale_skill_entries() {
+    local skills_dir=$1
+    [ -d "$skills_dir" ] || return 0
+
+    for skill_dir in "$skills_dir"/*; do
+        [ -d "$skill_dir" ] && [ ! -L "$skill_dir" ] || continue
+        for skill_entry in "$skill_dir"/*; do
+            if [ -L "$skill_entry" ] && [ ! -e "$skill_entry" ]; then
+                echo "Removing stale skill entry $skill_entry..."
+                rm "$skill_entry"
+            fi
+        done
+    done
+}
+
+# Stow leaves dangling per-skill links behind when a shared skill is removed.
+# Remove only broken links from agent discovery roots; never replace real files.
+remove_stale_skill_links() {
+    local skills_dir=$1
+    [ -d "$skills_dir" ] || return 0
+
+    for skill_link in "$skills_dir"/*; do
+        if [ -L "$skill_link" ] && [ ! -e "$skill_link" ]; then
+            echo "Removing stale skill link $skill_link..."
+            rm "$skill_link"
+        fi
+    done
+}
+
 # AGENTS.md: single source at ~/.config/AGENTS.md
 if [ -f ~/.config/AGENTS.md ]; then
     # Claude Code reads ~/.claude/CLAUDE.md
@@ -289,6 +336,11 @@ if [ -f ~/.config/AGENTS.md ]; then
 fi
 
 # Skills and subagents: shared XDG storage, tool dirs are directory symlinks.
+remove_stale_skill_entries "$HOME/.local/share/skills"
+remove_empty_skill_dirs "$HOME/.local/share/skills"
+remove_stale_skill_links "$HOME/.agents/skills"
+remove_stale_skill_links "$HOME/.codex/skills"
+
 if [ -d ~/.local/share/skills ]; then
     ensure_link ~/.local/share/skills ~/.claude/skills || true
     if [ -d ~/.codex ]; then

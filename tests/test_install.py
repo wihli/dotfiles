@@ -18,6 +18,30 @@ class InstallScriptTests(unittest.TestCase):
         )
         self.assertNotIn('{"//":', codex_merge)
 
+    def test_skill_cleanup_removes_dangling_links_from_agent_roots(self) -> None:
+        install_script = (REPO_ROOT / "install.sh").read_text()
+
+        self.assertIn("remove_empty_skill_dirs() {", install_script)
+        self.assertIn(
+            'remove_empty_skill_dirs "$HOME/.local/share/skills"', install_script
+        )
+        self.assertIn("remove_stale_skill_entries() {", install_script)
+        self.assertIn(
+            'remove_stale_skill_entries "$HOME/.local/share/skills"',
+            install_script,
+        )
+        self.assertIn("remove_stale_skill_links() {", install_script)
+        self.assertIn(
+            'if [ -L "$skill_link" ] && [ ! -e "$skill_link" ]; then',
+            install_script,
+        )
+        self.assertIn(
+            'remove_stale_skill_links "$HOME/.agents/skills"', install_script
+        )
+        self.assertIn(
+            'remove_stale_skill_links "$HOME/.codex/skills"', install_script
+        )
+
 
 if __name__ == "__main__":
     unittest.main()
