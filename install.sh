@@ -278,37 +278,34 @@ ensure_link() {
     echo "Linked $link -> $target"
 }
 
-# Stow leaves empty skill directories behind when a shared skill is removed.
-# A valid skill always has SKILL.md, so prune only empty directories.
+# Stow can leave nested empty directories behind when a shared skill is removed.
+# A valid skill always has SKILL.md, so prune only empty directories bottom-up.
 remove_empty_skill_dirs() {
     local skills_dir=$1
     [ -d "$skills_dir" ] || return 0
 
-    for skill_dir in "$skills_dir"/*; do
+    while IFS= read -r -d '' skill_dir; do
         [ -d "$skill_dir" ] && [ ! -L "$skill_dir" ] || continue
         [ -f "$skill_dir/SKILL.md" ] && continue
         if [ -z "$(find "$skill_dir" -mindepth 1 -print -quit)" ]; then
             echo "Removing empty skill directory $skill_dir..."
             rmdir "$skill_dir"
         fi
-    done
+    done < <(find "$skills_dir" -depth -mindepth 1 -type d -print0)
 }
 
-# Stow can leave dangling file links inside a former skill directory. Remove
-# only those broken links before checking whether the directory is empty.
+# Stow can leave dangling links at any depth inside a former skill directory.
+# Remove only broken links before checking whether the directory is empty.
 remove_stale_skill_entries() {
     local skills_dir=$1
     [ -d "$skills_dir" ] || return 0
 
-    for skill_dir in "$skills_dir"/*; do
-        [ -d "$skill_dir" ] && [ ! -L "$skill_dir" ] || continue
-        for skill_entry in "$skill_dir"/*; do
-            if [ -L "$skill_entry" ] && [ ! -e "$skill_entry" ]; then
-                echo "Removing stale skill entry $skill_entry..."
-                rm "$skill_entry"
-            fi
-        done
-    done
+    while IFS= read -r -d '' skill_entry; do
+        if [ ! -e "$skill_entry" ]; then
+            echo "Removing stale skill entry $skill_entry..."
+            rm "$skill_entry"
+        fi
+    done < <(find "$skills_dir" -type l -print0)
 }
 
 # Stow leaves dangling per-skill links behind when a shared skill is removed.

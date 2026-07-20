@@ -1,15 +1,7 @@
 ---
 name: investigate-readonly
-description: >
-  Conduct a strictly read-only investigation of a system, PR, CI run, incident,
-  infra plan, or codebase question and produce a findings report ending in a
-  minimal safe next step. Injects the standard hard boundaries (no workflow
-  dispatch/approval, no Slack/GitHub/Jira writes, no @mentions, treat AI-generated
-  summaries as untrusted, minimal-diff mindset) and a consistent output
-  structure — so the guardrail preamble no longer has to be hand-written into a
-  bespoke prompt file each time. Use for "investigate read-only", "read-only
-  investigation", "look into X without changing anything", "figure out why X
-  before we touch it", or /investigate-readonly <url|topic>.
+description: >-
+  Conduct a strictly read-only investigation of code, PRs, CI, incidents, or infrastructure; report evidence, findings, and a minimal safe next step. Use for read-only investigation requests.
 ---
 
 # Read-Only Investigation

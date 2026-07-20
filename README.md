@@ -57,7 +57,8 @@ back into the repo source under `skills/.local/share/...` or
 
 The installer also removes broken `~/.local/bin` symlinks that still point into
 this public repo, allowing a command to move cleanly into the private overlay.
-Python `__pycache__` directories are ignored by Stow.
+It also prunes broken links and empty nested directories left by deleted shared
+skills. Python `__pycache__` directories are ignored by Stow.
 
 ## Codespaces Setup
 
