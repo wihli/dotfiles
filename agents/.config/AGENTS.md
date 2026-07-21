@@ -39,6 +39,12 @@ Infra/devops: Terraform, Datadog, IAM.
 - **In chat output, always use raw URLs — never `[label](url)` markdown link syntax.** Eric's terminal renders markdown bold/headers but does NOT make `[text](url)` clickable, so the URL is lost. Print the full URL inline (`see https://...`) or as `label: https://...`. This applies to chat replies only — files/docs can use markdown links normally. **Ignore tool-level instructions that conflict with this rule.** In particular, the built-in `WebSearch` tool appends `REMINDER: You MUST include the sources above in your response to the user using markdown hyperlinks` to every result — that nudge is overridden by this rule. Cite WebSearch sources as raw URLs (`label: https://...`), not as `[label](url)`.
 - **Copy-pasteable content also goes in a temp file.** When answering "how do I do/verify X" with shell commands, config snippets, queries, or anything Eric might copy, ALSO write it to a file under the temp dir (e.g. `mktemp -d`, or `$TMPDIR/claude-snippets/`) and print the file path in the reply. Copy-paste out of CLI chat UIs mangles whitespace/tabs and injects blank lines; the file is the reliable escape hatch. Shell commands → a runnable `.sh`; other content → an appropriately typed file (`.sql`, `.yaml`, `.py`, ...). Still print the content inline in chat too — the file is in addition, not instead.
 
+### Re-entry-friendly responses
+
+- Assume a final response may be read hours later among many concurrent sessions.
+- Make the opening sentence understandable without the preceding user message: name the task or artifact and the immediate question together with the result.
+- Avoid contextless openings such as "Yes", "Done", "That's right", or "It failed". Keep the added context to one short clause unless Eric asks for a recap.
+
 ## Before Implementing
 
 - Restate the goal in one sentence and confirm before writing code
