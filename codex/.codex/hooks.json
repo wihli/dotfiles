@@ -18,6 +18,12 @@
             "type": "command",
             "command": "command -v agent-notify-ready >/dev/null && agent-notify-ready --clear Codex || true",
             "timeout": 5
+          },
+          {
+            "type": "command",
+            "command": "codex-recap --hook",
+            "statusMessage": "Generating recap with gpt-5.4-mini",
+            "timeout": 150
           }
         ]
       }
