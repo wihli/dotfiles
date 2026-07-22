@@ -337,6 +337,8 @@ remove_stale_skill_entries "$HOME/.local/share/skills"
 remove_empty_skill_dirs "$HOME/.local/share/skills"
 remove_stale_skill_links "$HOME/.agents/skills"
 remove_stale_skill_links "$HOME/.codex/skills"
+# Subagents stow per-file; a removed source leaves a dangling link behind.
+remove_stale_skill_links "$HOME/.local/share/subagents"
 
 if [ -d ~/.local/share/skills ]; then
     ensure_link ~/.local/share/skills ~/.claude/skills || true

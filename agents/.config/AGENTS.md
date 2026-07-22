@@ -83,6 +83,17 @@ Follow XDG Base Directory spec:
 
 Never pollute $HOME with dotfiles/dotdirs.
 
+## Code Review
+
+Applies to any diff/PR/code review, regardless of model:
+
+- **Evidence gate**: before reporting a finding, re-read the cited lines fresh (not from memory of the diff), quote them, name a concrete failure scenario (input/state => wrong outcome), and check for counter-evidence (upstream guard, caller validation, test). Any of those missing => drop the finding or ask it as an explicit question.
+- **Clean is valid**: zero findings is a legitimate outcome; never pad to look thorough. Empty section => "None identified." + what you checked.
+- **Severity = consequence**: Blocker (data loss/security/outage/broken deploy) > High (real bug, plausible path) > Medium (risk needing a decision) > Low (discretionary) > Info. Tag every finding; severity is not effort-to-fix.
+- **Skip**: linter-territory style/naming; speculative perf with no named hot path; restating the diff.
+- **Escalate, don't guess**: if the diff touches authn/authz, migrations/data deletion, concurrency, or IAM/Terraform state and a concern can't be verified, recommend a targeted high-effort pass naming files + questions.
+- **Thoroughness = narrow passes**: for audits, several single-concern passes (correctness, security, tests, simplification) with a verify step beat one broad pass.
+
 ## Before Saying "Done"
 
 - Re-read the diff as a reviewer. Look for: edge cases, missing error handling, resources created but not tagged/monitored, permissions broader than needed.
