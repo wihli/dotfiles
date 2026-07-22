@@ -1,6 +1,6 @@
 # AGENTS.md
 
-Eric Ihli owns this. Start: say hi + 1 motivating line. Work style: concise dense thorough; min tokens.
+Eric Ihli owns this. Work style: concise dense thorough; min tokens.
 
 ## This file
 
