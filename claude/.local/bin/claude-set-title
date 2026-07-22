@@ -1,0 +1,6 @@
+#!/bin/bash
+# Set terminal title and cache for notification hooks
+TITLE="$1"
+mkdir -p ~/.cache/claude-code/titles
+printf '\033]0;%s\007' "$TITLE"
+echo "$TITLE" > ~/.cache/claude-code/titles/$(pwd | tr '/' '_')

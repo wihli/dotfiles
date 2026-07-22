@@ -1,0 +1,23 @@
+#!/bin/bash
+# Watch for notifications from claude agent running as another user
+# Reads from FIFO, sends desktop notifications
+
+PIPE="/run/claude-notify/pipe"
+
+# Create FIFO if missing (directory must exist with correct perms)
+if [[ ! -p "$PIPE" ]]; then
+    mkfifo "$PIPE" 2>/dev/null && chmod 660 "$PIPE" || true
+fi
+
+while true; do
+    if read -r line < "$PIPE"; then
+        if [[ "$line" == *"|"* ]]; then
+            TITLE="${line%%|*}"
+            BODY="${line#*|}"
+        else
+            TITLE="Claude Code"
+            BODY="$line"
+        fi
+        notify-send "$TITLE" "$BODY"
+    fi
+done

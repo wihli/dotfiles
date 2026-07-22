@@ -3,5 +3,8 @@
 !bin/.local/
 !bin/.local/bin/
 !bin/.local/bin/agent-notify-ready
+!skills/.local/
+!subagents/.local/
+!claude/.local/
 __pycache__/
 settings.local.json
