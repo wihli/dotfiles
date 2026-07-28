@@ -135,12 +135,12 @@ done
 #   bin        -> ~/.local/bin/ shared helper commands
 #   claude     -> ~/.claude/settings.json
 #   codex      -> ~/.codex/hooks.json
-for pkg in bin claude codex agents skills subagents bash fish git starship tmux vim zellij; do
+for pkg in bin claude codex agents skills subagents bash doom fish git starship tmux vim zellij; do
     if [ "$pkg" = "skills" ] || [ "$pkg" = "subagents" ]; then
         detect_unmanaged_stow_files "$(pwd)" "$pkg"
     fi
     echo "Stowing $pkg..."
-    stow --no-folding --ignore='__pycache__' -t ~ "$pkg"
+    stow --no-folding --ignore='__pycache__' --ignore='\.pytest_cache' -t ~ "$pkg"
 done
 
 # Ensure ~/.bashrc sources ~/.bashrc.d/ (works with devcontainer-managed .bashrc)
@@ -180,7 +180,7 @@ if [ -d "$PRIVATE_DOTFILES" ]; then
         if [ "$pkg" = "skills" ] || [ "$pkg" = "subagents" ]; then
             detect_unmanaged_stow_files "$PRIVATE_DOTFILES" "$pkg"
         fi
-        stow --no-folding --ignore='__pycache__' -t ~ -d "$PRIVATE_DOTFILES" "$pkg"
+        stow --no-folding --ignore='__pycache__' --ignore='\.pytest_cache' -t ~ -d "$PRIVATE_DOTFILES" "$pkg"
     done
 
     # Codex approval rules are read before tool execution and symlinked rules are
