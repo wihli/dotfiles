@@ -6,6 +6,7 @@
       "ow" #'treemacs-select-window
       "cg" #'clipboard-github-link-from-current-line
       "cm" #'clipboard-man7
+      :desc "Claude Code" "a" #'claude-code
 )
 
 (map!

@@ -73,5 +73,7 @@
   :recipe (:local-repo "~/code/lit-mode"
            :files ("*.el")
            :build (:not compile)))
-(package! gptel)
 (package! pet)
+(package! claude-code
+  :recipe (:host github :repo "stevemolitor/claude-code.el"
+           :branch "main" :depth 1))

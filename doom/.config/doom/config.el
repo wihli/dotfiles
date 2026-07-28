@@ -9,6 +9,10 @@
 (setq-default vterm-shell (executable-find "fish"))
 (setq-default explicit-shell-file-name (executable-find "fish"))
 
+;; vterm needs a compiled native module. Without this, every rebuild of the
+;; package stops startup with an interactive "Compile it now?" prompt.
+(setq vterm-always-compile-module t)
+
 ;; Prevent TRAMP hangs: disable expensive remote operations
 (after! tramp
   (setq tramp-default-method "ssh")
@@ -197,7 +201,54 @@
 (add-hook 'typescript-mode-hook #'setup-tide-mode)
 
 (use-package! json-mode)
-(use-package! gptel)
+
+(after! gptel
+  ;; The key is a function so it's read per request rather than at load time;
+  ;; gptel would otherwise fail on a nil key with an opaque type error.
+  ;; The model list is explicit because gptel pins its own list to a snapshot,
+  ;; and only listed models appear in `gptel-menu' or carry the capability
+  ;; metadata that gates image and tool support.
+  (setq gptel-model 'claude-opus-5
+        gptel-backend
+        (gptel-make-anthropic "Claude"
+          :stream t
+          :key (lambda ()
+                 (or (getenv "ANTHROPIC_API_KEY")
+                     (user-error "ANTHROPIC_API_KEY is not set")))
+          :models
+          '((claude-opus-5
+             :description "Most capable model for complex reasoning and advanced coding"
+             :capabilities (media tool-use cache)
+             :mime-types ("image/jpeg" "image/png" "image/gif" "image/webp" "application/pdf")
+             :context-window 1000
+             :input-cost 5
+             :output-cost 25)
+            (claude-sonnet-5
+             :description "Best combination of speed and intelligence"
+             :capabilities (media tool-use cache)
+             :mime-types ("image/jpeg" "image/png" "image/gif" "image/webp" "application/pdf")
+             :context-window 1000
+             :input-cost 3
+             :output-cost 15)
+            (claude-haiku-4-5-20251001
+             :description "Fastest and most cost-effective for simple tasks"
+             :capabilities (media tool-use cache)
+             :mime-types ("image/jpeg" "image/png" "image/gif" "image/webp" "application/pdf")
+             :context-window 200
+             :input-cost 1
+             :output-cost 5)))))
+
+(use-package! claude-code
+  :config
+  ;; `claude-code-program' is looked up on `exec-path', which a GUI Emacs on
+  ;; macOS does not inherit from the shell. Give it the absolute path.
+  (setq claude-code-terminal-backend 'vterm
+        claude-code-program (expand-file-name "~/.local/bin/claude"))
+  ;; Claude prints file:line references; this makes them mouse- and
+  ;; `next-error'-navigable without rebinding RET the way the full
+  ;; `compilation-minor-mode' would.
+  (add-hook 'claude-code-start-hook #'compilation-shell-minor-mode)
+  (claude-code-mode))
 
 (setq sly-complete-symbol-function 'sly-flex-completions)
 
