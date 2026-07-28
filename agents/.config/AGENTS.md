@@ -33,6 +33,12 @@ Infra/devops: Terraform, Datadog, IAM.
 - **Copy-pasteable content also goes in a temp file.** Shell commands, config, queries → ALSO write to a typed file (`.sh`, `.sql`, `.yaml`, ...) under `mktemp -d` / `$TMPDIR/claude-snippets/` and print the path; CLI copy-paste mangles whitespace. Inline content stays too — the file is in addition, not instead.
 - **PR bodies/descriptions are for human reviewers, not agent execution logs.** In Testing/Checks, include meaningful behavior or environment validation, especially what Eric or another human actually verified; omit routine automated gates such as hooks, formatting, validation, linting, Actionlint, and generic green CI. If no meaningful validation happened beyond routine automation, omit the section. Report routine automation and unverified human/runtime checks to Eric separately, and never imply that he performed checks he did not perform.
 
+### Voice-transcribed input
+
+- Eric often dictates prompts, so user input may be a speech-to-text transcript with errors — misheard words, wrong homophones, mangled identifiers (repo/CLI/tool names, flags, acronyms), missing or invented punctuation.
+- A phrase that looks like nonsense, or like a word nobody would type, is usually a mis-transcription. Read it aloud phonetically and map it onto the plausible term in context before treating it as literal.
+- If one reading is clearly right, act on it and name the interpretation in a short clause. If competing readings would lead to materially different work, ask which was meant instead of guessing.
+
 ### Re-entry-friendly responses
 
 - A final response may be read hours later among many concurrent sessions.
