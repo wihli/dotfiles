@@ -58,7 +58,7 @@ Infra/devops: Terraform, Datadog, IAM.
 - Tests document context: what was the situation/expectation when added?
 - No shortcuts to pass types/tests
 - Keep files small (optimize for tokens)
-- Comments should add value beyond what code says
+- Comments must earn their place next to the code: preserve a non-obvious invariant, constraint, or consequence a future editor needs to change it safely. Put rollout plans, historical comparisons, verification details, and change-specific narrative in the PR, ticket, or commit.
 - Comments are timeless: state the constraint/invariant, not the incident that revealed it. No dates, ticket IDs, or "seen on <env> on <date>" — that history belongs in the commit message/PR body. References to durable docs are fine.
   - Bad: `# ... deletes fail with ResourceInUse ... (seen on the 2026-07-18 and 2026-07-20 staging applies)`
   - Good: `# ... deletes ordered before the old tasks drain fail with ResourceInUse.`
