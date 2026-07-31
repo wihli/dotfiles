@@ -67,6 +67,9 @@ Infra/devops: Terraform, Datadog, IAM.
 - Comments are timeless: state the constraint/invariant, not the incident that revealed it. No dates, ticket IDs, or "seen on <env> on <date>" — that history belongs in the commit message/PR body. References to durable docs are fine.
   - Bad: `# ... deletes fail with ResourceInUse ... (seen on the 2026-07-18 and 2026-07-20 staging applies)`
   - Good: `# ... deletes ordered before the old tasks drain fail with ResourceInUse.`
+- Comments describe the code as it stands, never the change that produced it. Banned framings: "the old X", "previously", "we used to", "now we", "unlike before", "the new Y", "this replaces". Whoever reads the file can't see the version you replaced, so the comparison is unresolvable there — put it in the commit message or PR. Rewrite it as the requirement the code satisfies.
+  - Bad: `# A transient describe-services error must not fail a deploy the old waiter would have retried through.`
+  - Good: `# describe-services fails transiently often enough that treating one error as fatal would abort healthy deploys, so only a sustained run of failures gives up.`
 - Comments are plain English for a reader six months out with zero context: unpack jargon into intent + consequence, and stay brief — a few lines, never a wall of text.
   - Bad: `// Fail open: recover the flat facet fields so facets keep resolving.`
   - Good: `// A second exception here would mask the primary error, so degrade to partial info instead of throwing. Datadog facets resolve these exact error.metadata paths, so an event that still carries them stays findable.`
