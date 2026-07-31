@@ -34,10 +34,14 @@
 (after! projectile
   (setq projectile-enable-caching t))
 
-;; Treemacs: don't poll remote filesystems
 (after! treemacs
+  ;; Don't poll remote filesystems.
   (setq treemacs-file-event-delay 5000)
-  (treemacs-git-mode -1))
+  (treemacs-git-mode -1)
+  ;; treemacs-mode sets `truncate-lines' itself, then calls (visual-line-mode -1),
+  ;; whose off-branch kills that local binding again. Left alone the drawer
+  ;; follows the global default and wraps long filenames onto a second line.
+  (add-hook 'treemacs-mode-hook (lambda () (setq-local truncate-lines t))))
 
 ;; Some functionality uses this to identify you, e.g. GPG configuration, email
 ;; clients, file templates and snippets.
@@ -54,10 +58,17 @@
 ;;
 ;; They all accept either a font-spec, font string ("Input Mono-12"), or xlfd
 ;; font string. You generally only need these two:
-;; 24 for hidpi
-;; 12 for lodpi
-(setq doom-font (font-spec :family "Menlo" :size 18))
-(setq doom-symbol-font (font-spec :family "Symbols Nerd Font Mono" :size 18))
+;; Emacs rounds each character cell to a whole pixel, so a size whose natural
+;; advance is already near-integral avoids being stretched. Monaspace is
+;; 0.619em, which lands clean at 16px (9.91px) but gets squeezed into a 9px
+;; cell at 15px. Medium rather than Regular because macOS only does grayscale
+;; antialiasing, and thin stems give it less to work with. Neither matters on
+;; a hidpi display, where the spare subpixels absorb both problems.
+(setq doom-font (font-spec :family "Monaspace Xenon" :size 16 :weight 'medium))
+(setq doom-symbol-font (font-spec :family "Symbols Nerd Font Mono" :size 16))
+
+;; Monaspace's own line height at 16px is 20px, which is tight for prose.
+(setq-default line-spacing 0.18)
 
 ;; There are two ways to load a theme. Both assume the theme is installed and
 ;; available. You can either set `doom-theme' or manually load a theme with the
@@ -238,16 +249,33 @@
              :input-cost 1
              :output-cost 5)))))
 
+(after! vterm
+  ;; vterm allocates its scrollback ring inside `vterm--new', at the moment the
+  ;; terminal is created, so the limit only takes effect if it is already raised
+  ;; before the buffer exists. Setting it from a start hook is too late. 100000
+  ;; is the ceiling compiled into vterm-module; a long agent session runs well
+  ;; past the 5000 lines Doom defaults to.
+  (setq vterm-max-scrollback 100000))
+
 (use-package! claude-code
   :config
   ;; `claude-code-program' is looked up on `exec-path', which a GUI Emacs on
   ;; macOS does not inherit from the shell. Give it the absolute path.
   (setq claude-code-terminal-backend 'vterm
+        ;; Claude's full-screen menus redraw with cursor-control sequences.
+        ;; Processing those sequences immediately keeps vterm's screen state intact.
+        claude-code-vterm-buffer-multiline-output nil
         claude-code-program (expand-file-name "~/.local/bin/claude"))
   ;; Claude prints file:line references; this makes them mouse- and
   ;; `next-error'-navigable without rebinding RET the way the full
   ;; `compilation-minor-mode' would.
   (add-hook 'claude-code-start-hook #'compilation-shell-minor-mode)
+  ;; A running terminal swallows SPC, so the leader key can't reach anything
+  ;; from inside a Claude session. C-c is the one prefix evil-collection
+  ;; deliberately does not forward to the terminal. Read-only mode freezes the
+  ;; terminal so the buffer scrolls and searches like any other.
+  (map! :map vterm-mode-map
+        :ni "C-c z" #'claude-code-toggle-read-only-mode)
   (claude-code-mode))
 
 (setq sly-complete-symbol-function 'sly-flex-completions)
@@ -314,4 +342,3 @@
 (load! "bindings")
 
 (server-start)
-
