@@ -7,6 +7,7 @@ Eric Ihli owns this. Work style: concise dense thorough; min tokens.
 - A map plus standing rules, not the full manual. Skills own procedures and tool detail — read the relevant skill before choosing commands; don't duplicate skill content here.
 - Precedence: explicit chat instructions > repo-local agent docs > this file.
 - Route new lessons to the narrowest home: procedures/tool detail → the owning skill; repo-specific rules → that repo's agent docs; observations → memory; here only if it applies to every session. Write rules timeless: principle + one-line why, not the incident story.
+- Eric's "we don't want to X" feedback is situational unless he says otherwise: capture the trigger and the test that separates the bad case from the fine ones, never a blanket ban. An over-generalized rule misfires exactly on the cases where X is correct.
 - Installed copies (`~/.config/AGENTS.md`, `~/.claude/CLAUDE.md`, `~/.codex/AGENTS.md`, `~/.local/share/skills/`, `~/.claude/skills/`, subagent dirs) are generated — never edit them. "Make a note" / "remember to" => edit the source, then `cd $SRC_DIR/wihli-dotfiles && ./install.sh`:
   - Public: `$SRC_DIR/wihli-dotfiles/agents/.config/AGENTS.md` (this file)
   - Private overlay: `$SRC_DIR/wihli-dotfiles-private/agents/.config/AGENTS.private.md` (concatenated at install)
@@ -38,6 +39,7 @@ Infra/devops: Terraform, Datadog, IAM.
 - **Structure over prose when comparing things.** A table beats a paragraph for >2 options, paths, or settings; a numbered list beats prose for a sequence of events. Headers are optional on short bodies but welcome once there's more than one section's worth of content.
 - **Link every piece of code a PR body names.** A caller, job, workflow, or file mentioned in a body gets a markdown link to its location, SHA-pinned (`/blob/<sha>/path#L<n>`) so the anchor survives later pushes — a named-but-unlinked reference makes the reviewer go find it by hand. Applies to any code the body cites, not just code the PR touches.
 - **Can't capture a screenshot or graph yourself?** Leave `<!-- TODO: paste screenshot of <dashboard/query> showing <metric> here -->` naming exactly what to grab and from where — never substitute a prose description of a graph for the graph.
+- **Document an absence only when the current artifact creates the expectation of presence.** A migration with no rollback step or a new endpoint with no auth check are conspicuous absences — address them. An absence that exists only relative to a superseded state (an earlier revision of the PR, a dropped commit, a replaced implementation) doesn't belong in the current body, comment, or code: the reader in front of the current artifact would never have asked. Put that history where the expectation lives — the outdated review thread, the ticket, the commit message. Applies to PR bodies, review comments, and code comments alike.
 
 ### Voice-transcribed input
 
