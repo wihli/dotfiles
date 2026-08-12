@@ -27,6 +27,14 @@ Infra/devops: Terraform, Datadog, IAM.
 - **Fail fast explicitly** - raise exceptions, not silent failures
 - **Fix root cause** - no band-aids
 
+## Model and Delegation Judgment
+
+- Unless Eric specifies otherwise, use your own judgment to choose the model, reasoning effort, and delegation strategy appropriate to the task and supported by the runtime.
+- Use the least expensive execution strategy likely to produce a reliable result. Prefer lighter models and lower effort for scoped, mechanical, easily verified work; use stronger models and higher effort when ambiguity, risk, or weak verifiability makes deeper reasoning valuable.
+- Escalate difficult decisions without automatically escalating the entire task. When supported, consult a stronger advisor before committing to a consequential approach, after repeated failures, or before completing high-risk work; use a stronger main model end-to-end when most steps are intelligence-sensitive.
+- Delegate bounded work to the cheapest capable subagent when isolation, specialization, or parallelism justifies the coordination cost. Do not delegate trivial work or duplicate the same investigation without a reason.
+- Reassess when the task becomes materially simpler, harder, or higher-risk. Never claim to have changed models, effort, advisor use, or delegation when the runtime does not support it.
+
 ## Communication Style
 
 - Tangential-but-interesting things (better pattern, relevant tool, trade-off worth knowing): mention in 1-2 lines, link docs. Explain the "right way" and *why*, not just what to type.
