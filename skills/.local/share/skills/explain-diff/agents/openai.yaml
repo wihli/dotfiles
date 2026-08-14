@@ -1,0 +1,4 @@
+interface:
+  display_name: "Explain Diff"
+  short_description: "Create local literate code-change explainers"
+  default_prompt: "Use $explain-diff to explain this code change as a local literate diff."
