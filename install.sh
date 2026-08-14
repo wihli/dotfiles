@@ -254,7 +254,8 @@ fi
 
 # --- Multi-tool integration ------------------------------------------------
 # Single source of truth lives in XDG locations; each coding-agent tool gets
-# symlinks into its expected paths. Currently wired: Claude Code, Codex CLI.
+# symlinks into its expected paths. Currently wired: Claude Code, Codex CLI,
+# and OpenCode.
 
 # Helper: create or refresh a symlink, only touching existing empty dirs.
 ensure_link() {
@@ -342,6 +343,13 @@ remove_stale_skill_links "$HOME/.local/share/subagents"
 
 if [ -d ~/.local/share/skills ]; then
     ensure_link ~/.local/share/skills ~/.claude/skills || true
+    # Codex and OpenCode discover the shared Agent Skills user directory. Link
+    # skills individually so provider-managed entries can coexist there.
+    for skill_dir in ~/.local/share/skills/*/; do
+        skill_name=$(basename "$skill_dir")
+        [ "$skill_name" = ".system" ] && continue
+        ensure_link "$skill_dir" "$HOME/.agents/skills/$skill_name" || true
+    done
     if [ -d ~/.codex ]; then
         # Codex manages its own skills/ dir (with .system/ inside), so we can't
         # replace it with a directory symlink. Instead, symlink each skill individually.

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Create Portable Skill"
+  short_description: "Create skills for Claude, Codex, and OpenCode"
+  default_prompt: "Use $create-portable-skill to create or update a shared skill that works in Claude Code, Codex, and OpenCode."

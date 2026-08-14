@@ -42,12 +42,15 @@ The intended split is:
 
 Treat repo paths as the source of truth. Installed home paths such as
 `~/.config/AGENTS.md`, `~/.local/share/skills/`, `~/.local/share/subagents/`,
-`~/.claude/skills/`, `~/.claude/agents/`, and `~/.codex/skills/` are generated
-targets managed by `install.sh` and Stow, not places to edit shared assets.
+`~/.claude/skills/`, `~/.claude/agents/`, `~/.agents/skills/`, and
+`~/.codex/skills/` are generated targets managed by `install.sh` and Stow, not
+places to edit shared assets.
 
 `install.sh` stows the public repo first, overlays the private repo second,
 merges private Claude settings and Codex hook fragments into their public base
 files, then links shared agent assets into the paths Claude and Codex expect.
+OpenCode discovers those same shared skills through its Agent Skills
+compatibility paths.
 
 If `stow` reports a conflict for a shared skill or subagent, that usually means
 someone wrote a real file into one of those managed home paths. Move the change
