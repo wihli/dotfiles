@@ -122,3 +122,6 @@ end
 function penva --description "Activate virtualenv"
     source ~/.virtualenvs/$argv[1]/bin/activate.fish
 end
+
+# opencode
+fish_add_path /Users/eihli/.opencode/bin
