@@ -1,4 +1,6 @@
 from pathlib import Path
+import subprocess
+import tempfile
 import unittest
 
 
@@ -6,6 +8,15 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 
 
 class InstallScriptTests(unittest.TestCase):
+    def test_install_script_has_valid_bash_syntax(self) -> None:
+        result = subprocess.run(
+            ["bash", "-n", str(REPO_ROOT / "install.sh")],
+            capture_output=True,
+            text=True,
+        )
+
+        self.assertEqual(0, result.returncode, result.stderr)
+
     def test_codex_hooks_merge_uses_supported_top_level_metadata(self) -> None:
         install_script = (REPO_ROOT / "install.sh").read_text()
         codex_merge = install_script.split(
@@ -46,6 +57,104 @@ class InstallScriptTests(unittest.TestCase):
         self.assertIn(
             'remove_stale_skill_links "$HOME/.codex/skills"', install_script
         )
+
+    def test_dotfiles_skill_manifests_are_materialized_without_changing_layout(self) -> None:
+        install_script = (REPO_ROOT / "install.sh").read_text()
+
+        self.assertIn("remove_generated_skill_manifests() {", install_script)
+        self.assertIn("materialize_skill_manifests() {", install_script)
+        self.assertIn(
+            'remove_generated_skill_manifests "$HOME/.local/share/skills"',
+            install_script,
+        )
+        self.assertIn(
+            'materialize_skill_manifests "$(pwd)" "$HOME/.local/share/skills"',
+            install_script,
+        )
+        self.assertIn(
+            'materialize_skill_manifests "$PRIVATE_DOTFILES" "$HOME/.local/share/skills"',
+            install_script,
+        )
+        self.assertIn('rm -f "$target_manifest"', install_script)
+        self.assertIn('cp "$source_manifest" "$target_manifest"', install_script)
+        self.assertIn("$GENERATED_SKILL_OWNER", install_script)
+        self.assertIn("stow --no-folding", install_script)
+
+        cleanup = install_script.index(
+            'remove_generated_skill_manifests "$HOME/.local/share/skills"'
+        )
+        public_stow = install_script.index("# Stow all packages")
+        materialize = install_script.index(
+            'materialize_skill_manifests "$(pwd)" "$HOME/.local/share/skills"'
+        )
+        integrations = install_script.index("# --- Multi-tool integration")
+        self.assertLess(cleanup, public_stow)
+        self.assertGreater(materialize, public_stow)
+        self.assertLess(materialize, integrations)
+
+    def test_generated_skill_manifest_lifecycle_preserves_unowned_skills(self) -> None:
+        install_script = (REPO_ROOT / "install.sh").read_text()
+        functions = install_script.split(
+            "# Codex follows symlinked skill directories", maxsplit=1
+        )[1].split(
+            'remove_generated_skill_manifests "$HOME/.local/share/skills"',
+            maxsplit=1,
+        )[0]
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            repo = root / "dotfiles"
+            source_manifest = repo / "skills/.local/share/skills/example/SKILL.md"
+            source_manifest.parent.mkdir(parents=True)
+            source_manifest.write_text("---\nname: example\ndescription: Test skill.\n---\n")
+
+            skills_dir = root / "home/.local/share/skills"
+            target_manifest = skills_dir / "example/SKILL.md"
+            target_manifest.parent.mkdir(parents=True)
+            target_manifest.symlink_to(source_manifest)
+
+            unowned_manifest = skills_dir / "third-party/SKILL.md"
+            unowned_manifest.parent.mkdir(parents=True)
+            unowned_manifest.write_text("third-party\n")
+            unowned_marker = unowned_manifest.parent / ".wihli-dotfiles-generated"
+            unowned_marker.write_text("not owned by this installer\n")
+
+            function_file = root / "skill-functions.sh"
+            function_file.write_text(functions)
+            materialized = subprocess.run(
+                [
+                    "bash",
+                    "-c",
+                    'source "$1"; materialize_skill_manifests "$2" "$3"',
+                    "bash",
+                    str(function_file),
+                    str(repo),
+                    str(skills_dir),
+                ],
+                capture_output=True,
+                text=True,
+            )
+            self.assertEqual(0, materialized.returncode, materialized.stderr)
+            self.assertFalse(target_manifest.is_symlink())
+            self.assertEqual(source_manifest.read_text(), target_manifest.read_text())
+
+            source_manifest.unlink()
+            cleaned = subprocess.run(
+                [
+                    "bash",
+                    "-c",
+                    'source "$1"; remove_generated_skill_manifests "$2"',
+                    "bash",
+                    str(function_file),
+                    str(skills_dir),
+                ],
+                capture_output=True,
+                text=True,
+            )
+            self.assertEqual(0, cleaned.returncode, cleaned.stderr)
+            self.assertFalse(target_manifest.exists())
+            self.assertEqual("third-party\n", unowned_manifest.read_text())
+            self.assertTrue(unowned_marker.exists())
 
 
 if __name__ == "__main__":

@@ -52,6 +52,12 @@ files, then links shared agent assets into the paths Claude and Codex expect.
 OpenCode discovers those same shared skills through its Agent Skills
 compatibility paths.
 
+Skill directories and supporting files keep the Stow-managed overlay layout.
+After both overlays are installed, `install.sh` replaces only dotfiles-owned
+`SKILL.md` links with generated regular files so Codex can discover them. An
+ownership marker lets later installs regenerate or remove those manifests
+without touching skills installed by other tools.
+
 If `stow` reports a conflict for a shared skill or subagent, that usually means
 someone wrote a real file into one of those managed home paths. Move the change
 back into the repo source under `skills/.local/share/...` or
