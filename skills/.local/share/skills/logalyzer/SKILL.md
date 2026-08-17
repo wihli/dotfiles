@@ -14,10 +14,10 @@ Analyze large logs without exhausting context. Extract signal, summarize finding
 
 ## Quick Start
 
-Run the analyzer script for a complete summary:
+Run the analyzer script from this skill directory for a complete summary:
 
 ```bash
-${CLAUDE_SKILL_DIR}/scripts/analyze.sh /path/to/logfile.log
+scripts/analyze.sh /path/to/logfile.log
 ```
 
 Options:
@@ -26,6 +26,8 @@ Options:
 - `--context N` - lines of context around samples (default: 5)
 
 The script outputs: metadata, severity counts, normalized error patterns, temporal analysis, stack traces, samples, and common issue detection.
+
+For project-scoped logs under `${XDG_STATE_HOME:-$HOME/.local/state}`, read `references/xdg-project-logs.md` and use its run metadata and structured JSON workflow.
 
 ## Manual Commands
 

@@ -67,7 +67,7 @@ Check each named item against the diff. Collect **candidate** findings — do no
 8. **Migration & rollout** — irreversible data changes; deploy-vs-migrate ordering; both feature-flag states; compatibility for in-flight items.
 9. **Design & simplification** — a new abstraction/API/dependency duplicating an existing primitive (framework feature, `for_each`/matrix, table-driven tests, existing helper). Raise only when you can name the concrete alternative and its advantage in 1–2 sentences; never bare "deduplicate this" or an unanchored "is there a simpler approach?".
 
-If the diff touches infra (Terraform, IAM, CI workflows, monitoring, MongoDB, ECS) and `~/.local/share/skills/review-checklists/SKILL.md` exists, read it and run the matching sections.
+If the diff touches infra (Terraform, IAM, CI workflows, monitoring, MongoDB, ECS) and `~/.local/share/agent-references/review-checklists.md` exists, read it and run the matching sections.
 
 ### 4. Verification gate — run every candidate through all three checks
 

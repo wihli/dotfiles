@@ -1,19 +1,10 @@
----
-name: log-analyze
-description: Analyze local project logs under XDG state directories, summarize errors and warnings, inspect run metadata, and report timelines and key observations.
-metadata:
-  short-description: Analyze local logs
----
+# XDG Project Logs
 
-# Log Analyze
-
-Analyze logs for: $ARGUMENTS
-
-Follows convention in `~/.claude/conventions/logging.md`.
+Use this workflow when logs follow the shared XDG project-state convention.
 
 ## 1. Resolve Project
 
-If `$ARGUMENTS` names a project, use it. Otherwise derive from cwd:
+If the request names a project, use it. Otherwise derive it from the working directory:
 
 ```bash
 basename "$(pwd)" | tr '[:upper:]_ ' '[:lower:]--'

@@ -29,7 +29,7 @@ Gather:
 
 ### 2. Research Phase
 
-Spawn parallel research (use `/research` pattern or Task agents):
+Use bounded parallel research when the active runtime supports delegation:
 - **External**: best practices, published approaches, academic papers
 - **Codebase**: existing patterns, reusable components, prior art
 - **Pitfalls**: common mistakes, failure modes, "lessons learned"
