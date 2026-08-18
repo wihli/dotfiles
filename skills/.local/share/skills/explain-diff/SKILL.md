@@ -55,15 +55,22 @@ Use evidence labels where certainty matters:
 
 Keep excerpts small enough to teach the idea. The explainer complements the raw diff; it does not replace reviewing it.
 
-## Derive self-contained HTML
+## Render deterministic HTML
 
-Render the same narrative to the returned HTML path after the Markdown is complete.
+Markdown is canonical; render it after it is complete. Resolve `scripts/render_explainer.py` relative to this skill directory and run:
 
-- Embed CSS and JavaScript locally. Do not use CDNs, analytics, remote fonts, uploads, Notion, or other hosted dependencies.
-- HTML-escape all repository content. Never interpolate code or diff text into executable JavaScript.
-- Include readable typography, syntax styling, navigation, and print CSS so the document works on screen and paper.
-- Add an interactive figure only when manipulating state materially improves the mental model. Keep it keyboard-accessible and ensure the prose still works without JavaScript.
-- Do not launch a browser or server automatically. If the user asks to interact with an artifact that requires HTTP, use a loopback-only temporary server and report how it can be stopped.
+```text
+python3 <skill-directory>/scripts/render_explainer.py \
+  --markdown <markdown_path> \
+  --html <html_path> \
+  --manifest <manifest_path>
+```
+
+Do not author ad hoc HTML, CSS, or direct Pandoc commands. The renderer owns the local template, styling, semantic TOC, compact provenance, responsive/print treatment, content escaping, and no-network-asset policy. It consumes the Markdown H1 as the one document title, renders verdict/evidence labels semantically, and refuses to overwrite a completed HTML revision with different bytes. Prepare a new variant if the canonical content changes.
+
+For PR-backed explainers, use the PR URL as `--source`: the renderer exposes **Open PR**, **Changed files**, and **Raw diff** near the title. Link review-level claims, checks, or changed-file navigation to the PR surface; use SHA-pinned blob links only for exact source evidence. Keep all links meaningful rather than turning every mention into a link.
+
+When visual quality is material, inspect the rendered HTML at wide desktop, normal laptop, and mobile widths before handoff. Do not launch a browser or server automatically unless the user asks to interact with it; a local file remains complete without JavaScript.
 
 ## Verify and hand off
 
