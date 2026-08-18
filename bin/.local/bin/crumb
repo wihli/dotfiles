@@ -1,0 +1,156 @@
+#! /usr/bin/env gforth
+\ Record and revisit short working-context breadcrumbs.
+
+require string.fs
+[undefined] mkdir-parents [if] require mkdir.fs [then]
+
+variable message$
+variable state-home$
+variable state-dir$
+variable history-path$
+
+0 message$ !
+0 state-home$ !
+0 state-dir$ !
+0 history-path$ !
+
+create cwd-buffer 4096 allot
+create line-buffer 8192 allot
+create tab-character 9 c,
+
+: path-exists? ( c-addr u -- flag )
+  file-status nip 0= ;
+
+: .missing-env ( c-addr u -- )
+  type ."  is not set; set it or XDG_STATE_HOME" cr ;
+
+: require-env ( c-addr1 u1 -- c-addr2 u2 )
+  2dup getenv dup 0= if
+    2drop ['] .missing-env stderr outfile-execute
+    1 (bye)
+  then
+  2swap 2drop ;
+
+: state-home ( -- c-addr u )
+  s" XDG_STATE_HOME" getenv dup 0<> if exit then
+  2drop
+  s" HOME" require-env state-home$ $!
+  s" /.local/state" state-home$ $+!
+  state-home$ $@ ;
+
+: prepare-paths ( -- )
+  state-home state-dir$ $!
+  s" /crumb" state-dir$ $+!
+  state-dir$ $@ history-path$ $!
+  s" /history.tsv" history-path$ $+! ;
+
+: ensure-state-dir ( -- )
+  state-dir$ $@ 2dup path-exists? if 2drop exit then
+  448 mkdir-parents throw ;
+
+: open-append { c-addr u -- file-id }
+  c-addr u r/w open-file
+  if
+    drop c-addr u r/w create-file throw
+  then { file-id }
+  file-id file-size throw file-id reposition-file throw
+  file-id ;
+
+: write-text { c-addr u file-id -- }
+  c-addr u file-id write-file throw ;
+
+: write-tab ( file-id -- )
+  >r tab-character 1 r> write-file throw ;
+
+: write-character ( c file-id -- )
+  >r pad c! pad 1 r> write-file throw ;
+
+: write-2 { n file-id -- }
+  n s>d <# # # #> file-id write-file throw ;
+
+: write-4 { n file-id -- }
+  n s>d <# # # # # #> file-id write-file throw ;
+
+: write-date { day month year file-id -- }
+  year file-id write-4
+  [char] - file-id write-character
+  month file-id write-2
+  [char] - file-id write-character
+  day file-id write-2 ;
+
+: write-clock { second minute hour file-id -- }
+  hour file-id write-2
+  [char] : file-id write-character
+  minute file-id write-2
+  [char] : file-id write-character
+  second file-id write-2 ;
+
+: write-timestamp { second minute hour day month year file-id -- }
+  day month year file-id write-date
+  [char] T file-id write-character
+  second minute hour file-id write-clock ;
+
+: contains? ( c-addr u c -- flag )
+  scan nip 0<> ;
+
+: valid-message? ( c-addr u -- flag )
+  dup 2048 u>= if 2drop false exit then
+  2dup 9 contains? >r
+  2dup 10 contains? >r
+  13 contains? r> or r> or 0= ;
+
+: .invalid-message ( -- )
+  ." crumb: invalid message: '" message$ $@ type ." '" cr
+  ." use fewer than 2048 bytes of single-line text" cr ;
+
+: reject-invalid-message ( -- )
+  message$ $@ valid-message? if exit then
+  ['] .invalid-message stderr outfile-execute
+  1 (bye) ;
+
+: collect-message ( -- flag )
+  next-arg dup 0= if 2drop false exit then
+  message$ $!
+  begin
+    next-arg dup
+  while
+    s"  " message$ $+!
+    message$ $+!
+  repeat
+  2drop true ;
+
+: record ( -- )
+  ensure-state-dir
+  history-path$ $@ open-append { file-id }
+  time&date file-id write-timestamp
+  file-id write-tab
+  cwd-buffer 4096 get-dir file-id write-text
+  file-id write-tab
+  message$ $@ file-id write-line throw
+  file-id close-file throw
+  ." Recorded: " message$ $@ type cr ;
+
+: list-history ( -- )
+  history-path$ $@ 2dup path-exists? 0= if
+    2drop ." No breadcrumbs yet." cr exit
+  then
+  r/o open-file throw { file-id }
+  begin
+    line-buffer 8192 file-id read-line throw
+  while
+    line-buffer swap type cr
+  repeat
+  drop
+  file-id close-file throw ;
+
+: crumb ( -- )
+  prepare-paths
+  collect-message if
+    reject-invalid-message record
+  else
+    list-history
+  then ;
+
+script? [if]
+  crumb bye
+[then]
