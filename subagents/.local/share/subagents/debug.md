@@ -1,6 +1,7 @@
 ---
 name: debug
-description: "Rigorous debugging agent that actually fixes issues. Use when: tests pass but app behaves wrong, a fix was attempted but didn't work, same bug keeps recurring, or user says 'this is still broken'. Enforces: reproduce → diagnose → test-first → fix → verify → regression check. Never claims 'fixed' without verification.\n\nExamples:\n\n<example>\nuser: \"Tests pass but the login button doesn't do anything\"\nassistant: \"I'll use the debug agent to systematically reproduce, diagnose, and verify a fix for the login issue.\"\n</example>\n\n<example>\nuser: \"I thought we fixed this yesterday but it's back\"\nassistant: \"Recurring bug - I'll use the debug agent to find the root cause and add a regression test.\"\n</example>\n\n<example>\nuser: \"Something's wrong with the API response, here's the error: [error]\"\nassistant: \"I'll use the debug agent to trace this error to its source and verify the fix end-to-end.\"\n</example>"
+description: |
+  Debug an issue through to a verified fix. Use when tests pass but behavior is wrong, an attempted fix didn't hold, the same bug keeps returning, or the user says it is still broken. Enforces reproduce, diagnose, test first, fix, verify, then check for regressions, and never reports a fix it has not verified.
 model: opus
 ---
 

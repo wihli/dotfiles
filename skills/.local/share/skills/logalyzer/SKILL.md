@@ -24,6 +24,46 @@ The script outputs: metadata, severity counts, normalized error patterns, tempor
 
 For project-scoped logs under `${XDG_STATE_HOME:-$HOME/.local/state}`, read `references/xdg-project-logs.md` and use its run metadata and structured JSON workflow.
 
+## Input modes
+
+| Input | Mode |
+|-------|------|
+| `/path/to/file.log` | Analyze that file |
+| `path1.log path2.log` | Diff the two (before and after) |
+| `xdg` | Recent logs under `${XDG_STATE_HOME:-$HOME/.local/state}` |
+| `journalctl` | systemd journal |
+| `docker` | Docker or compose logs |
+| `project` | `.log` files under the working directory |
+| `system` | `/var/log` |
+| nothing, or a vague ask | Discover, in the order below |
+
+Discovery order, stopping at the first hit. Pick the most recently modified candidate;
+ask which to analyze when several look relevant.
+
+```bash
+find . -name "*.log" -type f -mtime -1 -exec ls -lt {} + 2>/dev/null | head -5   # project logs
+rg -l -i "log_file|LOG_DIR|FileHandler" --type py --type js --type toml 2>/dev/null | head -3   # where the code writes
+ls -lt ~/.local/state/**/*.log 2>/dev/null | head -5   # XDG state
+ls -lt /var/log/*.log 2>/dev/null | head -5            # system
+```
+
+### journalctl
+
+```bash
+journalctl --priority=err --since "1 hour ago" --no-pager | head -50
+journalctl -u SERVICE_NAME --since "1 hour ago" --no-pager | tail -100
+```
+
+### Docker
+
+```bash
+if [[ -f docker-compose.yml ]] || [[ -f compose.yml ]]; then
+    docker compose logs --tail 100 2>&1
+else
+    docker ps --format '{{.Names}}' | head -1 | xargs -I {} docker logs {} --tail 100
+fi
+```
+
 ## Manual Commands
 
 Use these for targeted follow-up or when the script output needs refinement.
@@ -78,6 +118,7 @@ diff <(rg -o 'pattern' good.log | sort -u) \
 2. **Counts before content** - know frequency before reading examples
 3. **Limit context** - use `-m` (max count) and `-C` (context lines)
 4. **Deduplicate aggressively** - unique patterns with counts
+5. **Never dump** - no `cat`, no unlimited `grep`; a raw log in the transcript defeats the point
 
 ## Output Format
 

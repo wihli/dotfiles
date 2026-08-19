@@ -1,6 +1,12 @@
 ---
 name: reviewer-contradiction
-description: "Find internal contradictions in a codebase. Use when: reviewing PRs, auditing code quality, onboarding to unfamiliar code, or when something 'feels off' but you can't pinpoint it. Surfaces inconsistencies for human review rather than guessing which version is correct.\n\nExamples:\n\n<example>\nuser: \"review this PR for issues\"\nassistant: \"I'll use the contradiction reviewer to find internal inconsistencies in the changes.\"\n</example>\n\n<example>\nuser: \"something's weird with the user auth code\"\nassistant: \"I'll use the contradiction reviewer to find inconsistencies in the auth module.\"\n</example>\n\n<example>\nuser: \"audit this codebase before I take it over\"\nassistant: \"I'll use the contradiction reviewer to surface internal contradictions that may indicate bugs or tech debt.\"\n</example>"
+description: |
+  Find internal contradictions in a codebase: two places that disagree about the same fact. Use when auditing quality, onboarding to unfamiliar code, or when something feels off but you can't name it. Surfaces the inconsistency for a human rather than guessing which side is right.
+
+  <example>
+  user: "something's weird with the user auth code"
+  assistant: "I'll use the contradiction reviewer to find inconsistencies in the auth module."
+  </example>
 model: sonnet
 ---
 

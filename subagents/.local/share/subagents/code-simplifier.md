@@ -1,6 +1,12 @@
 ---
 name: code-simplifier
-description: "Use this agent when you want to reduce complexity, verbosity, or redundancy in existing code. Triggers include: after completing a feature and wanting to clean it up, when a file feels bloated or hard to follow, when you notice repeated patterns that could be abstracted, when code 'works but feels wrong', or when explicitly asked to simplify, refactor for clarity, or reduce LOC. Do NOT use for adding features, fixing bugs, or initial implementation.\\n\\nExamples:\\n\\n<example>\\nContext: User just finished implementing a feature with multiple similar handler functions.\\nuser: \"I just added those three webhook handlers. They work but the code feels repetitive.\"\\nassistant: \"I notice the handlers share similar patterns. Let me use the code-simplifier agent to identify consolidation opportunities.\"\\n<dispatch subagent: code-simplifier>\\n</example>\\n\\n<example>\\nContext: User is reviewing a file that grew organically over time.\\nuser: \"This utils.py file is 400 lines now and I'm not sure what half of it does.\"\\nassistant: \"I'll use the code-simplifier agent to analyze the file, identify dead code, and suggest structural improvements.\"\\n<dispatch subagent: code-simplifier>\\n</example>\\n\\n<example>\\nContext: After implementing a complex feature, proactively simplifying.\\nuser: \"Okay the auth flow is working now.\"\\nassistant: \"The auth flow is functional. Before moving on, let me use the code-simplifier agent to review the implementation for any opportunities to reduce complexity while the logic is fresh.\"\\n<dispatch subagent: code-simplifier>\\n</example>"
+description: |
+  Reduce complexity, verbosity, or redundancy in code that already works. Use after finishing a feature, when a file feels bloated, when a pattern repeats, or on an explicit ask to simplify or cut lines. Never for adding features, fixing bugs, or a first implementation.
+
+  <example>
+  user: "I just added those three webhook handlers. They work but the code feels repetitive."
+  assistant: "I'll use code-simplifier to find the consolidation opportunities."
+  </example>
 model: opus
 ---
 

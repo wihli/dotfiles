@@ -157,5 +157,64 @@ class InstallScriptTests(unittest.TestCase):
             self.assertTrue(unowned_marker.exists())
 
 
+    def test_opencode_export_adapts_frontmatter_and_skips_claude_only_agents(self) -> None:
+        install_script = (REPO_ROOT / "install.sh").read_text()
+        functions = install_script.split("# OpenCode agent export", maxsplit=1)[1].split(
+            "# Skills and subagents: shared XDG storage", maxsplit=1
+        )[0]
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            source = root / "subagents"
+            source.mkdir()
+            (source / "portable.md").write_text(
+                "---\nname: portable\ndescription: |\n  Does a thing.\nmodel: opus\npermissionMode: auto\n---\n\nBody line.\n"
+            )
+            (source / "claude-only.md").write_text(
+                "---\nname: claude-only\ndescription: Reads Datadog.\ntools:\n"
+                "  - Bash\n  - mcp__datadog__search-logs\n---\n\nBody.\n"
+            )
+            target = root / "agent"
+            target.mkdir()
+            handwritten = target / "mine.md"
+            handwritten.write_text("---\nmode: subagent\n---\n\nHand written.\n")
+
+            function_file = root / "opencode-functions.sh"
+            function_file.write_text(functions)
+            run = lambda: subprocess.run(
+                [
+                    "bash",
+                    "-c",
+                    'source "$1"; export_opencode_agents "$2" "$3"',
+                    "bash",
+                    str(function_file),
+                    str(source),
+                    str(target),
+                ],
+                capture_output=True,
+                text=True,
+            )
+            result = run()
+            self.assertEqual(0, result.returncode, result.stderr)
+            self.assertIn("Skipping OpenCode export of claude-only", result.stdout)
+
+            exported = (target / "portable.md").read_text()
+            self.assertIn("mode: subagent", exported)
+            self.assertIn("Does a thing.", exported)
+            self.assertIn("Body line.", exported)
+            # Claude's model aliases and tool names do not resolve in OpenCode.
+            self.assertNotIn("model: opus", exported)
+            self.assertNotIn("permissionMode", exported)
+            self.assertNotIn("name: portable", exported)
+            self.assertFalse((target / "claude-only.md").exists())
+
+            # Re-running is idempotent, drops a deleted source, and leaves hand-written
+            # agents in place.
+            (source / "portable.md").unlink()
+            self.assertEqual(0, run().returncode)
+            self.assertFalse((target / "portable.md").exists())
+            self.assertEqual("---\nmode: subagent\n---\n\nHand written.\n", handwritten.read_text())
+
+
 if __name__ == "__main__":
     unittest.main()
