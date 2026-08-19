@@ -1,10 +1,6 @@
 ---
 name: next
-description: |
-  Resume work on a project - discover state, verify health, clean up stale docs, suggest next tasks.
-  Use when: (1) starting work at beginning of day, (2) after a long agent work loop completes,
-  (3) user asks "what's next?", "what should we work on?", or similar,
-  (4) user explicitly runs /next.
+description: Resume a project: discover state, verify health, clean up stale docs, propose next tasks. Use for what's-next, start-of-day, or post-loop pickup.
 ---
 
 # Next: Project Resume Workflow

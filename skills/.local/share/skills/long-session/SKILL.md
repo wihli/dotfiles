@@ -1,10 +1,6 @@
 ---
 name: long-session
-description: |
-  Prep workflow before autonomous ralph-wiggum loops.
-  Use when: (1) starting overnight/long autonomous runs,
-  (2) user says "long session", "overnight", "autonomous",
-  (3) work will span multiple sessions without user interaction.
+description: Prep before an autonomous overnight loop that spans sessions. Use for long-session, overnight, or autonomous-run requests.
 ---
 
 # Long Session: Ralph Loop Prep

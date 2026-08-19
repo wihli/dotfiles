@@ -1,10 +1,6 @@
 ---
 name: finalize
-description: >
-  Wrap-up checklist after completing work. Use when: (1) user says "finalize", "wrap up",
-  "are you done?", "did you commit?", or similar, (2) before handoff/end of task,
-  (3) to verify nothing was forgotten. Runs git status check, test/type/lint gates,
-  critical review, and commits remaining changes.
+description: Run the wrap-up checklist before handoff: git status, test/type/lint gates, critical review, then commit what remains. Use for finalize, wrap up, or did-you-commit requests.
 ---
 
 # Finalize

@@ -1,9 +1,6 @@
 ---
 name: prompt-search
-description: |
-  Search prior prompts and sessions across BOTH Claude Code and Codex CLI history.
-  Use when looking for an old conversation, resuming prior work, or finding where
-  a term/topic was discussed before. Results are unified and tagged [claude]/[codex].
+description: Search prior Claude Code and Codex prompts and sessions. Use for finding an old conversation or where a topic was discussed before.
 ---
 
 # Prompt Search Skill

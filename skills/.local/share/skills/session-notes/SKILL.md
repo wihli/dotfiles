@@ -1,9 +1,6 @@
 ---
 name: session-notes
-description: |
-  Auto-generate session summary: what changed, findings, open questions, next steps.
-  Also handles end-of-day signoff — reads git history and conversation context automatically.
-  Triggers: "/session-notes", "/signoff", "signing off", "end of day", "take note for tomorrow"
+description: Summarize a session: changes, findings, open questions, next steps. Use for session-notes, signoff, or end-of-day requests.
 ---
 
 # Session Notes

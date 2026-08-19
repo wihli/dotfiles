@@ -36,6 +36,34 @@ class SkillCatalogTests(unittest.TestCase):
         self.assertNotIn("/research", north_star)
         self.assertNotIn("Task agents", north_star)
 
+    # Codex renders the whole skill catalog into a 2 percent slice of the model
+    # window -- about 5,440 tokens at 272k -- and silently shortens descriptions
+    # once the catalog exceeds it. Enabled Codex plugins already claim ~6,700
+    # chars of that slice, so a personal skill gets one line of what it does plus
+    # one line of when to use it. Long trigger-phrase lists blow the budget and
+    # cost every other skill its description.
+    MAX_FRONTMATTER_CHARS = 320
+    MAX_CATALOG_CHARS = 3000
+
+    def _frontmatter(self, path: Path) -> str:
+        parts = path.read_text().split("---\n")
+        self.assertGreaterEqual(len(parts), 3, f"{path} is missing frontmatter")
+        return parts[1]
+
+    def test_no_skill_description_exceeds_the_per_skill_budget(self) -> None:
+        for path in sorted(SKILL_ROOT.glob("*/SKILL.md")):
+            with self.subTest(skill=path.parent.name):
+                self.assertLessEqual(
+                    len(self._frontmatter(path)), self.MAX_FRONTMATTER_CHARS
+                )
+
+    def test_catalog_frontmatter_stays_within_the_codex_budget(self) -> None:
+        total = sum(
+            len(self._frontmatter(path))
+            for path in sorted(SKILL_ROOT.glob("*/SKILL.md"))
+        )
+        self.assertLessEqual(total, self.MAX_CATALOG_CHARS)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -1,11 +1,6 @@
 ---
 name: logalyzer
-description: |
-  Token-efficient analysis of large log files. Produces structured summaries for debugging.
-  Use when: analyzing logs, debugging from logs, investigating errors/failures/performance issues,
-  understanding what happened in a system, or when user provides log files to examine.
-  Triggers: "analyze these logs", "what went wrong", "debug this", "look at the logs",
-  file types: .log, server logs, application output, stderr captures.
+description: Summarize large log files token-efficiently for debugging. Use for log analysis, .log or stderr captures, and what-went-wrong questions.
 ---
 
 # Logalyzer
