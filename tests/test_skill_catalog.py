@@ -66,6 +66,25 @@ class SkillCatalogTests(unittest.TestCase):
         self.assertGreaterEqual(len(parts), 3, f"{path} is missing frontmatter")
         return parts[1]
 
+    def test_skill_description_plain_scalars_are_yaml_safe(self) -> None:
+        for path in sorted(SKILL_ROOT.glob("*/SKILL.md")):
+            with self.subTest(skill=path.parent.name):
+                line = next(
+                    (
+                        line
+                        for line in self._frontmatter(path).splitlines()
+                        if line.startswith("description: ")
+                    ),
+                    None,
+                )
+                self.assertIsNotNone(line, f"{path} has no description")
+                value = line.removeprefix("description: ")
+                if value.startswith(("'", '"', "|", ">")):
+                    continue
+                self.assertNotIn(
+                    ": ", value, f"{path} must quote a description containing ': '"
+                )
+
     def test_no_skill_description_exceeds_the_per_skill_budget(self) -> None:
         for path in sorted(SKILL_ROOT.glob("*/SKILL.md")):
             with self.subTest(skill=path.parent.name):

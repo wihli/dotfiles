@@ -1,6 +1,6 @@
 ---
 name: finalize
-description: Run the wrap-up checklist before handoff: git status, test/type/lint gates, critical review, then commit what remains. Use for finalize, wrap up, or did-you-commit requests.
+description: "Run the wrap-up checklist before handoff: git status, test/type/lint gates, critical review, then commit what remains. Use for finalize, wrap up, or did-you-commit requests."
 ---
 
 # Finalize

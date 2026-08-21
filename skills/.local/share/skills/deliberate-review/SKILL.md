@@ -1,6 +1,6 @@
 ---
 name: deliberate-review
-description: Open or supervise a local Deliberate pull-request review: status, findings, pause, cancel, resume, and guidance. Use for GitHub PR review requests with Deliberate or existing-review follow-ups.
+description: "Open or supervise a local Deliberate pull-request review: status, findings, pause, cancel, resume, and guidance. Use for GitHub PR review requests with Deliberate or existing-review follow-ups."
 ---
 
 # Deliberate Review

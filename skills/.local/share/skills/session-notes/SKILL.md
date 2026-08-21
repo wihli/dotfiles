@@ -1,6 +1,6 @@
 ---
 name: session-notes
-description: Summarize a session: changes, findings, open questions, next steps. Use for session-notes, signoff, or end-of-day requests.
+description: "Summarize a session: changes, findings, open questions, next steps. Use for session-notes, signoff, or end-of-day requests."
 ---
 
 # Session Notes

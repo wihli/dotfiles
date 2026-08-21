@@ -1,6 +1,6 @@
 ---
 name: next
-description: Resume a project: discover state, verify health, clean up stale docs, propose next tasks. Use for what's-next, start-of-day, or post-loop pickup.
+description: "Resume a project: discover state, verify health, clean up stale docs, propose next tasks. Use for what's-next, start-of-day, or post-loop pickup."
 ---
 
 # Next: Project Resume Workflow
