@@ -17,10 +17,11 @@ The install flow stows the public repo first, then overlays private packages whe
 - Shared helper commands live under `bin/.local/bin/`
 - Claude-specific runtime config lives under `claude/.claude/`
 - Codex-specific runtime hooks live under `codex/.codex/`
+- Pi-specific global extensions live under the private repo's `pi/.pi/agent/extensions/`
 - Shared skills live under `skills/.local/share/skills/`
 - Shared subagents live under `subagents/.local/share/subagents/`
-- Private-only Claude config, skills, and subagents live in the private repo
-- Installed home paths under `~/.config/`, `~/.local/share/`, `~/.claude/`, `~/.agents/`, and `~/.codex/` are generated targets, not source-of-truth edit locations
+- Private-only agent config, extensions, skills, and subagents live in the private repo
+- Installed home paths under `~/.config/`, `~/.local/share/`, `~/.claude/`, `~/.agents/`, `~/.codex/`, and `~/.pi/agent/extensions/` are generated targets, not source-of-truth edit locations
 
 Keep shared behavior in the shared XDG-style locations above. Keep tool-specific behavior in the tool-specific package only.
 
@@ -42,5 +43,5 @@ When changing agent-related layout, verify:
 
 1. `install.sh` still reflects the documented source-of-truth layout
 2. Public/private overlay order is still correct
-3. Shared docs describe Claude Code, Codex, and OpenCode accurately
+3. Shared docs describe Claude Code, Codex, Pi, and OpenCode accurately
 4. New skills/subagents include valid front matter

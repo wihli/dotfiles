@@ -231,7 +231,7 @@ if [ ! -d "$PRIVATE_DOTFILES" ]; then
 fi
 if [ -d "$PRIVATE_DOTFILES" ]; then
     echo "Stowing private dotfiles..."
-    for pkg in claude agents skills subagents fish bin oncall; do
+    for pkg in claude agents skills subagents fish bin oncall pi; do
         [ -d "$PRIVATE_DOTFILES/$pkg" ] || continue
         if [ "$pkg" = "skills" ] || [ "$pkg" = "subagents" ]; then
             detect_unmanaged_stow_files "$PRIVATE_DOTFILES" "$pkg"

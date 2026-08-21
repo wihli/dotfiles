@@ -36,19 +36,22 @@ The intended split is:
 - Shared helper commands: `bin/.local/bin/`
 - Claude-specific config: `claude/.claude/settings.json`
 - Codex-specific hooks: `codex/.codex/hooks.json`
+- Pi-specific global extensions: `$SRC_DIR/wihli-dotfiles-private/pi/.pi/agent/extensions/`
 - Shared skills: `skills/.local/share/skills/`
 - Shared subagents: `subagents/.local/share/subagents/`
-- Private overlays: `$SRC_DIR/wihli-dotfiles-private/{claude,codex,skills,subagents,...}`
+- Private overlays: `$SRC_DIR/wihli-dotfiles-private/{claude,codex,pi,skills,subagents,...}`
 
 Treat repo paths as the source of truth. Installed home paths such as
 `~/.config/AGENTS.md`, `~/.local/share/skills/`, `~/.local/share/subagents/`,
 `~/.claude/skills/`, `~/.claude/agents/`, `~/.agents/skills/`, and
-`~/.codex/skills/` are generated targets managed by `install.sh` and Stow, not
-places to edit shared assets.
+`~/.codex/skills/` are generated targets managed by `install.sh` and Stow.
+Private Pi extensions under `~/.pi/agent/extensions/` are managed the same way.
+Do not edit these installed paths.
 
 `install.sh` stows the public repo first, overlays the private repo second,
 merges private Claude settings and Codex hook fragments into their public base
-files, then links shared agent assets into the paths Claude and Codex expect.
+files, stows private Pi extensions, then links shared agent assets into the paths
+Claude and Codex expect.
 OpenCode discovers those same shared skills through its Agent Skills
 compatibility paths.
 

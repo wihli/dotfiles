@@ -8,6 +8,11 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 
 
 class InstallScriptTests(unittest.TestCase):
+    def test_private_pi_extensions_are_stowed(self) -> None:
+        install_script = (REPO_ROOT / "install.sh").read_text()
+
+        self.assertRegex(install_script, r"for pkg in [^\n]*\bpi\b[^\n]*; do")
+
     def test_install_script_has_valid_bash_syntax(self) -> None:
         result = subprocess.run(
             ["bash", "-n", str(REPO_ROOT / "install.sh")],
