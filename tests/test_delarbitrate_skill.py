@@ -48,6 +48,13 @@ class DelarbitrateSkillTests(unittest.TestCase):
         self.assertIn("Do not log in", self.skill)
         self.assertIn("add a connector", self.skill)
 
+    def test_retries_ambiguous_keychain_failure_outside_sandbox(self) -> None:
+        self.assertIn("restricted command sandbox", self.skill)
+        self.assertIn("retry the exact doctor command once", self.skill)
+        self.assertIn("approval mechanism", self.skill)
+        self.assertIn("Do not create a setup command or recovery script", self.skill)
+        self.assertIn("Only recommend `delarbitrate-auth setup`", self.skill)
+
     def test_documents_claude_and_codex_discovery_paths(self) -> None:
         for path in (
             "~/.local/share/skills/delarbitrate",

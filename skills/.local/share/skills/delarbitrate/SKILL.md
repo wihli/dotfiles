@@ -32,6 +32,8 @@ Run these commands with JSON output. Do not log in, invoke a provider directly, 
 <delarbitrate-command> run --task-file <task-file> --workspace <workspace> --json
 ```
 
+A restricted command sandbox can block Keychain reads. When `delarbitrate-auth` reports this failure, retry the exact doctor command once through the harness's normal approval mechanism. The retry must run outside that sandbox. Do not create a setup command or recovery script for the first failure. Only recommend `delarbitrate-auth setup` when the approved retry also fails. If the harness cannot request approval, report the sandbox access blocker and ask the user to run the doctor command. Do not claim that the token is absent.
+
 If `doctor` returns `blocked`, report its exact blocker. Do not attempt authentication or continue the pipeline.
 
 Handle the run result by its `status`:
