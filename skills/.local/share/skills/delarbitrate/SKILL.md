@@ -23,11 +23,13 @@ Use the referenced workspace when the user supplies one. Otherwise, use the curr
 
 ## Run the foreground pipeline
 
+Use `delarbitrate-auth` when it is available. Otherwise, use `delarbitrate`. The command templates use `<delarbitrate-command>` for that selected executable. Do not invoke `delarbitrate-auth setup`; only the user can add a token to Keychain.
+
 Run these commands with JSON output. Do not log in, invoke a provider directly, enable a write permission, or add a connector.
 
 ```text
-delarbitrate doctor --json
-delarbitrate run --task-file <task-file> --workspace <workspace> --json
+<delarbitrate-command> doctor --json
+<delarbitrate-command> run --task-file <task-file> --workspace <workspace> --json
 ```
 
 If `doctor` returns `blocked`, report its exact blocker. Do not attempt authentication or continue the pipeline.
@@ -35,10 +37,10 @@ If `doctor` returns `blocked`, report its exact blocker. Do not attempt authenti
 Handle the run result by its `status`:
 
 - `complete`: Return `answer_markdown`, then a compact receipt with `run_id`, `selected_candidate_backbone`, `arbitration_path`, `evidence_coverage`, and `packet_path`.
-- `needs_human`: Ask only `human_brief.question`. Preserve the answer verbatim in a temporary answer file. Then run `delarbitrate continue <run-id> --answer-file <answer-file> --json` and handle the successor result by the same rules.
+- `needs_human`: Ask only `human_brief.question`. Preserve the answer verbatim in a temporary answer file. Then run `<delarbitrate-command> continue <run-id> --answer-file <answer-file> --json` and handle the successor result by the same rules.
 - `blocked`: Report the exact `error` or doctor check. Do not replace arbitration with an informal model call.
 
-Use `delarbitrate show <run-id> --json` to recover a known run. Never select a run by recency or guess a run ID.
+Use `<delarbitrate-command> show <run-id> --json` to recover a known run. Never select a run by recency or guess a run ID.
 
 ## Portability and discovery
 

@@ -23,11 +23,14 @@ class DelarbitrateSkillTests(unittest.TestCase):
         self.assertIn("Do not trigger for ordinary reviews", self.skill)
 
     def test_routes_exact_cli_states_and_continuation(self) -> None:
+        self.assertIn(
+            "Use `delarbitrate-auth` when it is available", self.skill
+        )
         for command in (
-            "delarbitrate doctor --json",
-            "delarbitrate run --task-file <task-file> --workspace <workspace> --json",
-            "delarbitrate continue <run-id> --answer-file <answer-file> --json",
-            "delarbitrate show <run-id> --json",
+            "<delarbitrate-command> doctor --json",
+            "<delarbitrate-command> run --task-file <task-file> --workspace <workspace> --json",
+            "<delarbitrate-command> continue <run-id> --answer-file <answer-file> --json",
+            "<delarbitrate-command> show <run-id> --json",
         ):
             self.assertIn(command, self.skill)
         for status in ("`complete`", "`needs_human`", "`blocked`"):
