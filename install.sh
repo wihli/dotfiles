@@ -191,7 +191,7 @@ done
 #   bin        -> ~/.local/bin/ shared helper commands
 #   claude     -> ~/.claude/settings.json
 #   codex      -> ~/.codex/hooks.json
-for pkg in bin claude codex agents skills subagents bash doom fish git starship tmux vim zellij; do
+for pkg in bin delarbitrate claude codex agents skills subagents bash doom fish git starship tmux vim zellij; do
     if [ "$pkg" = "skills" ] || [ "$pkg" = "subagents" ]; then
         detect_unmanaged_stow_files "$(pwd)" "$pkg"
     fi
