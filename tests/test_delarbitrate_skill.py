@@ -28,7 +28,7 @@ class DelarbitrateSkillTests(unittest.TestCase):
         )
         for command in (
             "<delarbitrate-command> doctor --json",
-            "<delarbitrate-command> run --task-file <task-file> --workspace <workspace> --json",
+            "<delarbitrate-command> run --task-file <task-file> --workspace <workspace> [--source <source-path>]... --json",
             "<delarbitrate-command> continue <run-id> --answer-file <answer-file> --json",
             "<delarbitrate-command> show <run-id> --json",
         ):
@@ -36,6 +36,9 @@ class DelarbitrateSkillTests(unittest.TestCase):
         for status in ("`complete`", "`needs_human`", "`blocked`"):
             self.assertIn(status, self.skill)
         self.assertIn("Ask only `human_brief.question`", self.skill)
+        self.assertIn("authority_kind", self.skill)
+        self.assertIn("answer-only", self.skill)
+        self.assertIn("do not call `continue`", self.skill)
 
     def test_preserves_request_and_enforces_read_only_child_boundary(self) -> None:
         self.assertIn("User request (verbatim)", self.skill)
@@ -47,6 +50,27 @@ class DelarbitrateSkillTests(unittest.TestCase):
         self.assertIn("leave the workspace and external systems unchanged", self.skill)
         self.assertIn("Do not log in", self.skill)
         self.assertIn("add a connector", self.skill)
+
+    def test_requires_scoped_export_approval_and_prefetches_external_evidence(self) -> None:
+        self.assertIn("data-export approval", self.skill)
+        self.assertIn("Codex and Claude", self.skill)
+        self.assertIn("owning read-only skill", self.skill)
+        self.assertIn("before freezing the task", self.skill)
+        self.assertIn("bounded findings and locators", self.skill)
+        self.assertIn("Never copy a secret", self.skill)
+
+    def test_freezes_every_local_source_and_does_not_create_worktrees(self) -> None:
+        self.assertIn("one `--source <absolute-path>`", self.skill)
+        self.assertIn("- `/absolute/path`", self.skill)
+        self.assertIn("Do not create a worktree", self.skill)
+
+    def test_relays_only_observed_progress_and_routes_new_evidence_to_a_fresh_run(self) -> None:
+        self.assertIn("JSONL progress events from stderr", self.skill)
+        self.assertIn("Do not infer progress from silence", self.skill)
+        self.assertIn("Do not expose provider prompts", self.skill)
+        self.assertIn("blocked_reason` is `insufficient_evidence", self.skill)
+        self.assertIn("start a fresh `run`", self.skill)
+        self.assertIn("Never spend a second paid run", self.skill)
 
     def test_retries_ambiguous_keychain_failure_outside_sandbox(self) -> None:
         self.assertIn("restricted command sandbox", self.skill)

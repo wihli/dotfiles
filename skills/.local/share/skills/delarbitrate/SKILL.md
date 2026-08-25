@@ -13,34 +13,61 @@ Read `DELARBITRATE_CHILD` before any other action. If it equals `1`, refuse to i
 
 ## Freeze the task
 
-1. Create a temporary Markdown task file.
-2. Copy the referenced user request into a `User request (verbatim)` section without editing, summarizing, or correcting it.
-3. Add only facts already established in the conversation under `Established context`.
-4. Add only explicit local source paths under `Source paths`.
-5. Do not add inferred preferences, external writes, provider instructions, or new authority.
+Prepare all required read-only evidence before freezing the task:
 
-Use the referenced workspace when the user supplies one. Otherwise, use the current workspace. Before human escalation, the task file is the only skill-created input. Delarbitrate can write only its XDG run state and must leave the workspace and external systems unchanged.
+1. Identify each external evidence source and local directory that the request requires.
+2. Use the owning read-only skill or supported CLI for Jira, Datadog, Slack, or another external source before freezing the task. Delarbitrate provider children cannot use those connectors.
+3. Add only bounded findings and locators to `Established context`. Never copy a secret, raw connector payload, or unrelated record.
+4. Use the referenced workspace as the primary workspace. Otherwise, use the current workspace.
+5. Include every required local directory. Do not create a worktree or temporary checkout. The CLI creates an immutable source bundle in its XDG state.
+
+Create a temporary Markdown task file with these sections:
+
+```text
+# User request (verbatim)
+<the referenced request without editing, summarizing, or correcting it>
+
+# Established context
+<only established facts, bounded findings, and exact locators>
+
+## Source paths
+- `/absolute/path`
+```
+
+List the primary workspace and each additional local source with the exact bullet form shown above. Add one `--source <absolute-path>` argument for each source outside the primary workspace. Do not add inferred preferences, external writes, provider instructions, or new authority.
+
+Before any provider launch, require explicit data-export approval for the identified task and source content to go to both Codex and Claude. Existing approval is sufficient only when it clearly covers this task, these sources, and both providers. If approval is absent, ask one scoped approval question. Approval does not grant write authority.
+
+Delarbitrate can write only its XDG run state. It must leave the workspace and external systems unchanged.
 
 ## Run the foreground pipeline
 
 Use `delarbitrate-auth` when it is available. Otherwise, use `delarbitrate`. The command templates use `<delarbitrate-command>` for that selected executable. Do not invoke `delarbitrate-auth setup`; only the user can add a token to Keychain.
 
-Run these commands with JSON output. Do not log in, invoke a provider directly, enable a write permission, or add a connector.
+Run these commands with JSON output. Do not log in, invoke a provider directly, enable a write permission, or add a connector to a provider child.
 
 ```text
 <delarbitrate-command> doctor --json
-<delarbitrate-command> run --task-file <task-file> --workspace <workspace> --json
+<delarbitrate-command> run --task-file <task-file> --workspace <workspace> [--source <source-path>]... --json
 ```
 
 A restricted command sandbox can block Keychain reads. When `delarbitrate-auth` reports this failure, retry the exact doctor command once through the harness's normal approval mechanism. The retry must run outside that sandbox. Do not create a setup command or recovery script for the first failure. Only recommend `delarbitrate-auth setup` when the approved retry also fails. If the harness cannot request approval, report the sandbox access blocker and ask the user to run the doctor command. Do not claim that the token is absent.
 
 If `doctor` returns `blocked`, report its exact blocker. Do not attempt authentication or continue the pipeline.
 
+## Report observed progress
+
+For `run` and `continue`, read JSONL progress events from stderr while the foreground process runs. Relay concise observed stage changes, retries, and heartbeats. Do not infer progress from silence or elapsed time. Do not claim that a provider is collecting evidence unless an event says so.
+
+Progress can include the run ID, stage, elapsed time, active launch count, and remaining timeout. Do not expose provider prompts, candidate claims, reasoning, raw provider output, or secrets. Treat stdout as the single terminal result object.
+
 Handle the run result by its `status`:
 
 - `complete`: Return `answer_markdown`, then a compact receipt with `run_id`, `selected_candidate_backbone`, `arbitration_path`, `evidence_coverage`, and `packet_path`.
-- `needs_human`: Ask only `human_brief.question`. Preserve the answer verbatim in a temporary answer file. Then run `<delarbitrate-command> continue <run-id> --answer-file <answer-file> --json` and handle the successor result by the same rules.
-- `blocked`: Report the exact `error` or doctor check. Do not replace arbitration with an informal model call.
+- `needs_human`: Ask only `human_brief.question` when `authority_kind` is `preference` or `authoritative_fact` and the question is answer-only. An answer-only question asks for a choice or fact that the user already knows. A request for access, authorization to query, a source path, a command, investigation, or another tool action is a protocol blocker; report it and do not call `continue`. Preserve a valid answer verbatim in a temporary answer file. Then run `<delarbitrate-command> continue <run-id> --answer-file <answer-file> --json` and handle the successor result by the same rules.
+- `blocked`: Report the exact `error` or doctor check. When `blocked_reason` is `insufficient_evidence`, also return `evidence_brief`, including every exact next read-only action. Do not replace arbitration with an informal model call.
+
+`continue` can add only the answer to the emitted authority question. If the user supplies new evidence, a new source path, or new access, do not call `continue`. Rebuild the task and start a fresh `run` so the CLI freezes a new source bundle. Never spend a second paid run after a blocked run without fresh explicit approval.
 
 Use `<delarbitrate-command> show <run-id> --json` to recover a known run. Never select a run by recency or guess a run ID.
 
