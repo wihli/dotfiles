@@ -51,18 +51,21 @@ class DelarbitrateSkillTests(unittest.TestCase):
         self.assertIn("Do not log in", self.skill)
         self.assertIn("add a connector", self.skill)
 
-    def test_requires_scoped_export_approval_and_prefetches_external_evidence(self) -> None:
-        self.assertIn("data-export approval", self.skill)
-        self.assertIn("Codex and Claude", self.skill)
+    def test_explicit_invocation_is_consent_and_children_can_investigate(self) -> None:
+        self.assertIn("authorizes Codex and Claude", self.skill)
+        self.assertIn("normal read-only agents, skills, and tools", self.skill)
         self.assertIn("owning read-only skill", self.skill)
-        self.assertIn("before freezing the task", self.skill)
+        self.assertIn("starting context", self.skill)
         self.assertIn("bounded findings and locators", self.skill)
         self.assertIn("Never copy a secret", self.skill)
+        self.assertNotIn("data-export approval", self.skill)
 
-    def test_freezes_every_local_source_and_does_not_create_worktrees(self) -> None:
+    def test_uses_live_sources_and_does_not_create_worktrees(self) -> None:
         self.assertIn("one `--source <absolute-path>`", self.skill)
         self.assertIn("- `/absolute/path`", self.skill)
         self.assertIn("Do not create a worktree", self.skill)
+        self.assertIn("live workspace", self.skill)
+        self.assertNotIn("immutable source bundle", self.skill)
 
     def test_relays_only_observed_progress_and_routes_new_evidence_to_a_fresh_run(self) -> None:
         self.assertIn("JSONL progress events from stderr", self.skill)
@@ -70,7 +73,7 @@ class DelarbitrateSkillTests(unittest.TestCase):
         self.assertIn("Do not expose provider prompts", self.skill)
         self.assertIn("blocked_reason` is `insufficient_evidence", self.skill)
         self.assertIn("start a fresh `run`", self.skill)
-        self.assertIn("Never spend a second paid run", self.skill)
+        self.assertIn("Do not spend a second paid run", self.skill)
 
     def test_retries_ambiguous_keychain_failure_outside_sandbox(self) -> None:
         self.assertIn("restricted command sandbox", self.skill)
