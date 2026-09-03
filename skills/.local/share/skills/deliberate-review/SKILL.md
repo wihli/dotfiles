@@ -1,11 +1,15 @@
 ---
 name: deliberate-review
-description: "Open or supervise a local Deliberate pull-request review: status, findings, pause, cancel, resume, and guidance. Use for GitHub PR review requests with Deliberate or existing-review follow-ups."
+description: "Open or supervise a local Deliberate pull-request review: status, findings, pause, cancel, resume, and guidance. Use only when the user explicitly asks for Deliberate by name or follows up on an established Deliberate review."
 ---
 
 # Deliberate Review
 
-Use this skill for `deliberate review PR #123`, `review owner/repo#123 with deliberate`, a GitHub pull-request URL, and follow-ups about that review's status, findings, pause, cancel, resume, or focus.
+Use this skill for `deliberate review PR #123`, `review owner/repo#123 with deliberate`, and follow-ups about an established Deliberate review's status, findings, pause, cancel, resume, or focus.
+
+## Trigger boundary
+
+An ordinary code or pull-request review request must use the normal review workflow. Do not infer Deliberate from `review this code`, `review this PR`, a pull-request URL, or a request for a thorough review. Invoke this skill only when the request names Deliberate or continues a Deliberate review already established in the conversation.
 
 The skill is shared by Claude Code and Codex. OpenCode can use the same tool-neutral core through its Agent Skills compatibility paths, but P027 validates discovery behavior only for Claude Code and Codex. Read state, run the bundled helper with Python, and use the returned local CLI operation without relying on either harness's private syntax.
 

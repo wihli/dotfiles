@@ -22,6 +22,15 @@ class DelarbitrateSkillTests(unittest.TestCase):
         self.assertIn("explicitly requests multi-model arbitration", frontmatter)
         self.assertIn("Do not trigger for ordinary reviews", self.skill)
 
+    def test_trigger_requires_an_explicit_delarbitrate_request(self) -> None:
+        frontmatter = self.skill.split("---", maxsplit=2)[1]
+
+        self.assertIn("Use only when the user explicitly requests", frontmatter)
+        self.assertIn(
+            "An ordinary code or pull-request review request must use the normal review workflow",
+            self.skill,
+        )
+
     def test_routes_exact_cli_states_and_continuation(self) -> None:
         self.assertIn(
             "Use `delarbitrate-auth` when it is available", self.skill

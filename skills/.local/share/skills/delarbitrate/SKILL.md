@@ -1,11 +1,13 @@
 ---
 name: delarbitrate
-description: Run bounded read-only Codex and Claude arbitration. Use when the user explicitly requests multi-model arbitration, an independent cross-model decision, or Delarbitrate.
+description: Run bounded read-only Codex and Claude arbitration. Use only when the user explicitly requests multi-model arbitration with Codex and Claude or names Delarbitrate.
 ---
 
 # Delarbitrate
 
 Use this skill for explicit requests such as “arbitrate this with Codex and Claude,” “get an independent cross-model decision,” or “use Delarbitrate.” Do not trigger for ordinary reviews, brainstorming, a second opinion from one unspecified model, or requests that do not ask for multi-model arbitration.
+
+An ordinary code or pull-request review request must use the normal review workflow. Do not infer Delarbitrate from a request for a thorough, independent, or multi-pass review. Invoke this skill only when the request names Delarbitrate or explicitly asks for cross-model arbitration with Codex and Claude.
 
 ## Refuse recursion
 

@@ -60,6 +60,16 @@ class DeliberateReviewSkillTests(unittest.TestCase):
         self.assertEqual("deliberate-review-validator-v1", validated["schema"])
         self.assertTrue(validated["valid"])
 
+    def test_trigger_requires_an_explicit_deliberate_request(self) -> None:
+        skill = (SKILL_ROOT / "SKILL.md").read_text()
+        frontmatter = skill.split("---", maxsplit=2)[1]
+
+        self.assertIn("Use only when the user explicitly asks for Deliberate", frontmatter)
+        self.assertIn(
+            "An ordinary code or pull-request review request must use the normal review workflow",
+            skill,
+        )
+
     def test_shared_skill_uses_fake_operations_from_both_discovery_paths(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
