@@ -1,11 +1,11 @@
 ---
 name: explain-diff
-description: Create persistent local literate diffs with background, intuition, narrative review order, Markdown, and HTML. Use for PRs, commit ranges, patches, or worktree changes.
+description: Create persistent local literate diffs with review priorities and expandable explanations. Use for PRs, commit ranges, patches, or worktree changes.
 ---
 
 # Explain Diff
 
-Optimize for the best explanation, not the fastest summary. Catch the human up on the existing system, build intuition before details, and then walk through the change as a literate diff in causal review order.
+Help the reader choose where to spend attention. Lead with what changed, why it matters, and where to start reviewing. Let the reader request background, code, and evidence as needed. The literate diff should reduce the work of reconstructing the change across files.
 
 ## Establish the comparison
 
@@ -30,30 +30,55 @@ python3 <skill-directory>/scripts/artifact_store.py prepare \
   --variant <audience-or-focus>
 ```
 
-Use a stable subject such as a PR URL, `pr:<number>`, `range:<base>...<head>`, or `worktree:<branch>`. Use `general` as the default variant; name a different variant when the audience or review focus changes.
+Use a stable subject such as a PR URL, `pr:<number>`, `range:<base>...<head>`, or `worktree:<branch>`. Use `progressive` as the default variant to identify this reading format. Name a different variant when the audience, review focus, or requested rewrite changes.
 
 The helper stores durable artifacts under `$XDG_DATA_HOME/explain-diff` (default `~/.local/share/explain-diff`) and the mutable lookup index under `$XDG_STATE_HOME/explain-diff` (default `~/.local/state/explain-diff`). `$XDG_CACHE_HOME` is only appropriate for disposable rendering intermediates, never the explainer or its provenance.
 
 The helper prints JSON containing `revision_dir`, `markdown_path`, `html_path`, `manifest_path`, and whether the exact subject, snapshot, and variant were reused. It creates a content-addressed revision for changed input and moves `latest` to that revision. Treat a revision as immutable after both outputs exist. If an exact revision already contains both outputs, return it instead of silently regenerating it.
 
-## Build understanding
+## Write the first screen
 
-Write the canonical explanation to the returned Markdown path with this order:
+Write the canonical explanation to the returned Markdown path. Make the opening useful without expansion:
 
-1. **Goal** — State the user-visible or system-level outcome in plain language.
-2. **What existed before** — Teach the minimum background needed to understand the change: architecture, data flow, vocabulary, and constraints.
-3. **Intuition before details** — Give the mental model, analogy, diagram, or worked example that makes the implementation predictable before showing code.
-4. **Literate diff** — Walk through changes in dependency and causal order, not filename order. For each step, explain its purpose, before/after behavior, concise code excerpts, source locations, and downstream effects.
-5. **Verification and risk** — Explain what tests or runtime evidence establish, what could fail, and what still needs human attention.
-6. **Review map** — List files in the recommended reading order and link the persisted raw diff.
+- Title the actual change. For an extraction, name the code being shared; do not present existing behavior as a new fix.
+- Explain the outcome and motivation in a few sentences. Use one concrete input, event, or before/after example when it makes the change easier to grasp. Give intuition before details without requiring a background chapter.
+- Separate existing behavior, code that moves, and behavior that changes. State the result of the analysis; omit narration about conducting the review.
+- Offer a few prioritized review questions with a short answer or consequence and a link to the relevant section. Order them by what deserves attention. Do not invent findings to fill a quota.
+- Keep material risks, uncertainty that affects a decision, and limits on an approval recommendation visible. Put exact revisions and artifact metadata in a final `## Provenance` section.
 
-Use evidence labels where certainty matters:
+Aim for an opening the reader can absorb in about a minute. Adapt to the change and requested depth; a small change may need no expandable detail.
 
-- **Observed** — Directly supported by code, tests, history, or runtime evidence inspected for this explanation.
-- **Inferred** — A conclusion drawn from observed evidence; state the reasoning.
-- **Unresolved** — Missing evidence or a decision the explanation cannot settle.
+## Let the reader choose depth
 
-Keep excerpts small enough to teach the idea. The explainer complements the raw diff; it does not replace reviewing it.
+Organize the walkthrough around questions about behavior or concrete conclusions. Keep each section heading and its takeaway visible. A reader who jumps directly to a section should understand the question, answer, and consequence without remembering earlier paragraphs.
+
+Put supporting background, small before/after code excerpts, source links, and verification details in native `<details>` blocks. Each `<summary>` should say what the reader will learn, such as a consequence or a specific reason to inspect the code. Avoid labels such as "Details" or "More information." Prefer one level of expansion.
+
+Use this Markdown pattern. Keep blank lines around the block content so code and links render correctly:
+
+````markdown
+## Which IDs can reach the scheduler?
+
+**Changed behavior:** Any string now passes the ID filter. Check how the scheduler handles malformed IDs.
+
+<details>
+<summary>The replacement removes the ID-format check</summary>
+
+```diff
+- .filter(isRecordId)
++ .filter(id => typeof id === "string")
+```
+
+[Inspect the changed predicate](raw.diff)
+
+</details>
+````
+
+Keep headings and internal link targets outside collapsed blocks so navigation always reaches visible context. Blocks start closed. Use a short causal reading order within each explanation; connect code from different files when it answers the same question. Explain unchanged code only when it establishes a constraint the reviewer needs.
+
+Keep evidence beside the claim it supports. **Observed** means directly supported by inspected evidence; **Inferred** means a reasoned conclusion; **Unresolved** means missing evidence or an open decision. Use these labels when certainty affects interpretation, not on every paragraph. Distinguish an existing reviewer's question from an established defect. Keep detailed review discussion separate from background teaching.
+
+State what verification establishes and what remains unknown in a short visible takeaway. Expand into test behavior, runtime evidence, and source references only as needed. The explainer complements the raw diff; it does not replace reviewing it.
 
 ## Render deterministic HTML
 
@@ -66,7 +91,7 @@ python3 <skill-directory>/scripts/render_explainer.py \
   --manifest <manifest_path>
 ```
 
-Do not author ad hoc HTML, CSS, or direct Pandoc commands. The renderer owns the local template, styling, semantic TOC, compact provenance, responsive/print treatment, content escaping, and no-network-asset policy. It consumes the Markdown H1 as the one document title, renders verdict/evidence labels semantically, and refuses to overwrite a completed HTML revision with different bytes. Prepare a new variant if the canonical content changes.
+Use only the native disclosure markup shown above; do not author ad hoc page HTML, CSS, scripts, or direct Pandoc commands. The renderer owns the local template, styling, semantic TOC, compact provenance, responsive/print treatment, content escaping, and no-network-asset policy. It consumes the Markdown H1 as the one document title, renders verdict/evidence labels semantically, and refuses to overwrite a completed HTML revision with different bytes. Prepare a new variant if the canonical content changes.
 
 For PR-backed explainers, use the PR URL as `--source`: the renderer exposes **Open PR**, **Changed files**, and **Raw diff** near the title. Link review-level claims, checks, or changed-file navigation to the PR surface; use SHA-pinned blob links only for exact source evidence. Keep all links meaningful rather than turning every mention into a link.
 
@@ -77,7 +102,8 @@ When visual quality is material, inspect the rendered HTML at wide desktop, norm
 Before returning the artifact:
 
 1. Re-read cited source locations and confirm every claim still matches them.
-2. Open both outputs as text and verify their structure, code escaping, provenance, and links. Render or open the HTML when visual or interactive behavior is part of the request.
-3. Confirm the manifest identifies the repository, comparison, snapshot hash, subject, variant, and output names without credentials.
-4. Report the exact Markdown, HTML, manifest, and raw-diff paths; say whether the revision was created or reused.
-5. Distinguish completed checks, unavailable runtime validation, and unresolved questions.
+2. Read only the opening, headings, takeaways, and closed summaries. Can the reader explain the change and choose where to review next? Jump into a middle section and check that it restores context after an interruption.
+3. Open both outputs as text and verify their structure, code escaping, provenance, and links. Check that material risks remain visible with details closed. Render or open the HTML when visual or interactive behavior is part of the request; verify expansion, keyboard focus, and navigation to visible headings.
+4. Confirm the manifest identifies the repository, comparison, snapshot hash, subject, variant, and output names without credentials.
+5. Report the exact Markdown, HTML, manifest, and raw-diff paths; say whether the revision was created or reused.
+6. Distinguish completed checks, unavailable runtime validation, and unresolved questions.

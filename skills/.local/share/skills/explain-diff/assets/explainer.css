@@ -390,7 +390,7 @@ pre code {
 
 .reading-pane {
   min-width: 0;
-  padding: clamp(3.7rem, 5vw, 5.35rem) clamp(3.25rem, 6vw, 7rem) 6rem;
+  padding: 2.25rem clamp(3.25rem, 6vw, 7rem) 6rem;
 }
 
 .report-header,
@@ -413,13 +413,13 @@ pre code {
 }
 
 .report-header h1 {
-  max-width: 19ch;
+  max-width: 32ch;
   margin: 0;
   color: var(--ink);
-  font-size: clamp(2.9rem, 4.15vw, 4.15rem);
+  font-size: clamp(2rem, 2.8vw, 2.65rem);
   font-weight: 750;
-  letter-spacing: -0.052em;
-  line-height: 1.02;
+  letter-spacing: -0.035em;
+  line-height: 1.12;
 }
 
 .report-actions {
@@ -462,11 +462,33 @@ pre code {
 }
 
 .article {
-  margin-top: 2.15rem;
+  margin-top: 1.5rem;
 }
 
-.article > :where(h2, h3, h4, h5, h6, p, ul, ol, blockquote, hr, dl, .verdict) {
+.article > :where(h2, h3, h4, h5, h6, p, ul, ol, blockquote, hr, dl, details, .verdict) {
   max-width: 76ch;
+}
+
+.article details {
+  margin: 0.7rem 0 1.5rem;
+  border: 1px solid var(--line);
+  border-radius: 0.4rem;
+  padding: 0.75rem 1rem;
+}
+
+.article summary {
+  cursor: pointer;
+  color: var(--link);
+  font-weight: 650;
+  line-height: 1.45;
+}
+
+.article details[open] > summary {
+  margin-bottom: 1rem;
+}
+
+.article details > :last-child {
+  margin-bottom: 0;
 }
 
 .article > :where(pre, .sourceCode, .table-scroll, figure) {
@@ -483,7 +505,7 @@ pre code {
 }
 
 .article h2 {
-  margin: 4.2rem 0 1.25rem;
+  margin: 2.25rem 0 1rem;
   border-top: 1px solid var(--line);
   padding-top: 1rem;
   font-size: clamp(1.48rem, 2vw, 1.75rem);
@@ -493,7 +515,7 @@ pre code {
 }
 
 .article h3 {
-  margin: 2.85rem 0 0.8rem;
+  margin: 1.75rem 0 0.8rem;
   font-size: 1.18rem;
   font-weight: 720;
   letter-spacing: -0.014em;
@@ -772,7 +794,7 @@ hr {
   }
 
   .reading-pane {
-    padding: 3.2rem clamp(2rem, 7vw, 4.5rem) 5rem;
+    padding: 2rem clamp(2rem, 7vw, 4.5rem) 5rem;
   }
 
   .mobile-toc {
@@ -838,7 +860,7 @@ hr {
 
   .report-header h1 {
     max-width: none;
-    font-size: clamp(2.15rem, 10vw, 2.75rem);
+    font-size: clamp(1.65rem, 6vw, 2.1rem);
   }
 
   .report-actions {
@@ -866,12 +888,12 @@ hr {
   }
 
   .article h2 {
-    margin-top: 3.35rem;
+    margin-top: 2rem;
     font-size: 1.43rem;
   }
 
   .article h3 {
-    margin-top: 2.35rem;
+    margin-top: 1.5rem;
   }
 
   .evidence-note {
@@ -981,6 +1003,12 @@ hr {
     min-width: 0;
   }
 
+  .article details::details-content,
+  .artifact-provenance::details-content {
+    content-visibility: visible;
+  }
+
+  .article details > :not(summary),
   .artifact-provenance > :not(summary) {
     display: block !important;
   }

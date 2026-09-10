@@ -58,6 +58,44 @@ RAW_DIFF = "diff --git a/example b/example\n+safe change\n"
 
 class ExplainDiffRendererTests(unittest.TestCase):
     @unittest.skipUnless(shutil.which("pandoc"), "Pandoc is required for renderer tests")
+    def test_evidence_collapses_without_hiding_the_review_question_or_risk(self) -> None:
+        markdown_text = """# Share the existing cleanup rules
+
+## Which IDs can reach the scheduler?
+
+**Review first:** malformed IDs pass the replacement predicate.
+
+<details open ontoggle="alert('unsafe')">
+<summary onclick="alert('unsafe')">The predicate accepts any string</summary>
+
+The scheduler used to validate the ID format.
+
+```diff
+- .filter(isDomainId)
++ .filter(id => typeof id === "string")
+```
+
+[Predicate source](https://github.com/example/repo/pull/42/files)
+
+</details>
+"""
+        with tempfile.TemporaryDirectory() as temporary:
+            _, markdown, manifest, html = self._fixture(Path(temporary), markdown_text)
+            result = self._render(markdown, html, manifest)
+            self.assertEqual(0, result.returncode, result.stderr)
+            rendered = html.read_text()
+            article = rendered.split('<article class="article">', 1)[1].split("</article>", 1)[0]
+            visible, opening, remainder = article.partition("<details>")
+            self.assertEqual("<details>", opening, "evidence must start collapsed")
+            self.assertIn('id="which-ids-can-reach-the-scheduler"', visible)
+            self.assertIn("malformed IDs pass", visible)
+            details = remainder.split("</details>", 1)[0]
+            self.assertIn("<summary>The predicate accepts any string</summary>", details)
+            self.assertIn("<pre", details)
+            self.assertRegex(details, r">Predicate\s+source</a>")
+            self.assertNotRegex(rendered, r"ontoggle|onclick|<details open")
+
+    @unittest.skipUnless(shutil.which("pandoc"), "Pandoc is required for renderer tests")
     def test_rendered_document_has_one_title_safe_content_and_review_links(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             _, markdown, manifest, html = self._fixture(Path(temporary))

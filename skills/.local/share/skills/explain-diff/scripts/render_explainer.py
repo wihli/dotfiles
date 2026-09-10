@@ -45,9 +45,9 @@ TABLE = re.compile(r"(?P<table><table\b[^>]*>.*?</table>)", re.IGNORECASE | re.D
 BLOCKQUOTE = re.compile(r"<blockquote>(?P<content>.*?)</blockquote>", re.IGNORECASE | re.DOTALL)
 ALLOWED_TAGS = frozenset(
     {
-        "a", "blockquote", "br", "code", "dd", "div", "dl", "dt", "em",
+        "a", "blockquote", "br", "code", "dd", "details", "div", "dl", "dt", "em",
         "figcaption", "figure", "h2", "h3", "h4", "h5", "h6", "hr", "li",
-        "nav", "ol", "p", "pre", "s", "span", "strong", "sub", "sup", "table",
+        "nav", "ol", "p", "pre", "s", "span", "strong", "sub", "summary", "sup", "table",
         "tbody", "td", "th", "thead", "tr", "ul",
     }
 )
@@ -283,7 +283,7 @@ def render_with_pandoc(markdown: str) -> tuple[str, str]:
         result = subprocess.run(
             [
                 "pandoc",
-                "--from=gfm-raw_html",
+                "--from=gfm",
                 "--to=html5",
                 "--standalone",
                 "--toc",
