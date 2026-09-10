@@ -5,7 +5,7 @@ description: Create persistent local literate diffs with review priorities and e
 
 # Explain Diff
 
-Bring a technically capable reader up to speed without assuming familiarity with this system. Establish what the system does and how its parts relate before explaining the change or asking review questions. Then help the reader choose where to spend attention. The literate diff should reduce both missing context and the work of reconstructing the change across files.
+Write a standalone explanation for a technically capable reader who has not seen the conversation. Bring them up to speed without assuming familiarity with this system. Establish what the system does and how its parts relate before explaining the change or asking review questions. Then help the reader choose where to spend attention. The literate diff should reduce both missing context and the work of reconstructing the change across files.
 
 ## Establish the comparison
 
@@ -15,11 +15,12 @@ Bring a technically capable reader up to speed without assuming familiarity with
 4. Inspect the diff for credentials, `.env` contents, private keys, or other secrets before persisting it. Stop and identify the unsafe input rather than copying a suspected secret into an artifact.
 5. Read enough pre-change code, current code, callers, tests, and nearby documentation to explain what existed before. Do not infer architecture from changed lines alone.
 
-## Establish the reader's starting point
+## Establish the system context
 
-Assume practically zero context about the affected system unless the user demonstrates otherwise. Familiarity with a technology does not imply knowledge of this project's jobs, services, interfaces, or terminology.
+Default to practically zero context about the affected system. An explicit audience brief may set the scope, but prior chat, project notes, and familiarity with a technology do not establish what a future reader knows. The document must supply its own prerequisites.
 
-- Start from what the reader says they know. Explain the connection and its limits: two tasks may use the same execution service while running different programs for different purposes.
+- Use conversation and project notes to guide investigation, then explain the verified relationships inside the document. Do not make that context a prerequisite for reading it.
+- Describe the system directly. Avoid claims about the reader's knowledge, such as "you already know", references such as "as we discussed", and narration about earlier drafts. Introduce an example as a system fact: "This service also runs database migrations." Explain what the example shares with the change and where it differs.
 - Trace the existing flow: who starts the work, where they start it, what runs, what information it uses, and what it changes. Follow callers and documentation until you can explain those relationships in ordinary language.
 - Introduce each necessary component by its purpose before relying on its name. Locate interfaces concretely: a field in a named page or command, rather than an unexplained "dropdown" or "manual runner".
 - Define terms through behavior and one concrete example when useful. A glossary of expanded acronyms does not explain how the system works. Do not use an identifier as its own explanation.
@@ -52,7 +53,7 @@ The helper prints JSON containing `revision_dir`, `markdown_path`, `html_path`, 
 Write the canonical explanation to the returned Markdown path. Make the opening useful without expansion:
 
 - Title the actual change. For an extraction, name the code being shared; do not present existing behavior as a new fix.
-- Explain the existing system and the concrete problem before the outcome. Name the actor, task, and place where the change takes effect. Connect these to the reader's known starting point. Give intuition before details; keep this essential background visible rather than behind an expansion.
+- Explain the existing system and the concrete problem before the outcome. Name the actor, task, and place where the change takes effect. Explain their relationships within the document. Give intuition before details; keep this essential background visible rather than behind an expansion.
 - Separate existing behavior, code that moves, and behavior that changes. State the result of the analysis; omit narration about conducting the review.
 - After that orientation, offer review priorities only when they help. Every question must use concepts already explained and state why the answer matters. A small change may need only a short conclusion. Do not make the reader answer architectural questions to discover what the PR is about.
 - Keep material risks, uncertainty that affects a decision, and limits on an approval recommendation visible. Put exact revisions and artifact metadata in a final `## Provenance` section.
@@ -113,7 +114,7 @@ When visual quality is material, inspect the rendered HTML at wide desktop, norm
 Before returning the artifact:
 
 1. Re-read cited source locations and confirm every claim still matches them.
-2. Read only the opening, headings, takeaways, and closed summaries from the user's stated starting point. Can the reader say what the system does, how it relates to what they know, where the change appears, and why it matters? Check every review question for an unexplained prerequisite. Add the missing explanation before the question, or omit the question. Jump into a middle section and check that it restores context after an interruption.
+2. Read only the opening, headings, takeaways, and closed summaries as someone who has not seen the conversation. Can the reader say what the system does, how its parts relate, where the change appears, and why it matters? Remove claims about their prior knowledge and references to the chat or earlier drafts. Check every review question for an unexplained prerequisite. Add the missing explanation before the question, or omit the question. Jump into a middle section and check that it restores context after an interruption.
 3. Open both outputs as text and verify their structure, code escaping, provenance, and links. Check that material risks remain visible with details closed. Render or open the HTML when visual or interactive behavior is part of the request; verify expansion, keyboard focus, and navigation to visible headings.
 4. Confirm the manifest identifies the repository, comparison, snapshot hash, subject, variant, and output names without credentials.
 5. Report the exact Markdown, HTML, manifest, and raw-diff paths; say whether the revision was created or reused.
