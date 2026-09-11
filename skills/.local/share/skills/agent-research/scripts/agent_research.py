@@ -97,7 +97,7 @@ def validate(value, schema, where='result'):
         for item in value:
             validate(item, schema['items'], where + '[]')
     elif kind == 'string':
-        if not isinstance(value, str) or len(value) > 16000:
+        if not isinstance(value, str) or not value.strip() or len(value) > schema.get('maxLength', 2000):
             raise ValueError(f'{where}: expected bounded text')
         if 'enum' in schema and value not in schema['enum']:
             raise ValueError(f'{where}: invalid value {value!r}')
@@ -272,7 +272,7 @@ def scan(root, config, force=False, now=None):
             atomic_json(root / 'sources.json', seen)
         except BaseException as error:
             events = events or events_from(directory / 'events.jsonl')
-            state.update(status='failed', last_error=str(error), retry_after=iso(now+timedelta(days=1)))
+            state.update(status='failed', last_error=str(error)[:2000], retry_after=iso(now+timedelta(days=1)))
             run.update(status='failed', error=str(error))
             raise
         finally:

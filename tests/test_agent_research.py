@@ -94,6 +94,18 @@ class ResearchTests(unittest.TestCase):
             data=result(); data['findings'][0]['sources'][0]['url']=url
             with self.subTest(url=url), self.assertRaises(ValueError): m.prepare_result(data,set())
 
+    def test_required_metadata_is_nonblank_and_fits_desktop_limits(self):
+        for key in ['summary', 'search_queries', 'version', 'published_at', 'title']:
+            data=result()
+            if key == 'summary': data[key]='  '
+            elif key == 'search_queries': data[key]=['  ']
+            else: data['findings'][0]['sources'][0][key]='  '
+            with self.subTest(key=key), self.assertRaises(ValueError): m.prepare_result(data,set())
+        data=result(); data['summary']='x'*2001
+        with self.assertRaises(ValueError): m.prepare_result(data,set())
+        data=result(); data['findings'][0]['evidence']='x'*8000
+        self.assertEqual(len(m.prepare_result(data,set())['findings']),1)
+
     def test_partial_coverage_requires_explanation(self):
         data=result(); data['coverage']='partial'
         with self.assertRaises(ValueError): m.prepare_result(data,set())

@@ -2,19 +2,25 @@
   "type": "object",
   "properties": {
     "summary": {
-      "type": "string"
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 2000
     },
     "coverage": {
       "type": "string",
       "enum": [
         "complete",
         "partial"
-      ]
+      ],
+      "minLength": 1,
+      "maxLength": 2000
     },
     "coverage_notes": {
       "type": "array",
       "items": {
-        "type": "string"
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 2000
       },
       "maxItems": 12,
       "minItems": 0
@@ -22,7 +28,9 @@
     "search_queries": {
       "type": "array",
       "items": {
-        "type": "string"
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 2000
       },
       "maxItems": 20,
       "minItems": 1
@@ -30,7 +38,9 @@
     "sources_reviewed": {
       "type": "array",
       "items": {
-        "type": "string"
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 4000
       },
       "maxItems": 30,
       "minItems": 0
@@ -41,22 +51,34 @@
         "type": "object",
         "properties": {
           "title": {
-            "type": "string"
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1000
           },
           "claim": {
-            "type": "string"
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 4000
           },
           "evidence": {
-            "type": "string"
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 8000
           },
           "limitations": {
-            "type": "string"
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 4000
           },
           "relevance": {
-            "type": "string"
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 4000
           },
           "suggestion": {
-            "type": "string"
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 4000
           },
           "sources": {
             "type": "array",
@@ -64,16 +86,24 @@
               "type": "object",
               "properties": {
                 "url": {
-                  "type": "string"
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 4000
                 },
                 "title": {
-                  "type": "string"
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 1000
                 },
                 "published_at": {
-                  "type": "string"
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 256
                 },
                 "version": {
-                  "type": "string"
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 256
                 }
               },
               "required": [
