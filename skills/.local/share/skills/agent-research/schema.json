@@ -1,0 +1,115 @@
+{
+  "type": "object",
+  "properties": {
+    "summary": {
+      "type": "string"
+    },
+    "coverage": {
+      "type": "string",
+      "enum": [
+        "complete",
+        "partial"
+      ]
+    },
+    "coverage_notes": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "maxItems": 12,
+      "minItems": 0
+    },
+    "search_queries": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "maxItems": 20,
+      "minItems": 1
+    },
+    "sources_reviewed": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "maxItems": 30,
+      "minItems": 0
+    },
+    "findings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string"
+          },
+          "claim": {
+            "type": "string"
+          },
+          "evidence": {
+            "type": "string"
+          },
+          "limitations": {
+            "type": "string"
+          },
+          "relevance": {
+            "type": "string"
+          },
+          "suggestion": {
+            "type": "string"
+          },
+          "sources": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "url": {
+                  "type": "string"
+                },
+                "title": {
+                  "type": "string"
+                },
+                "published_at": {
+                  "type": "string"
+                },
+                "version": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "url",
+                "title",
+                "published_at",
+                "version"
+              ],
+              "additionalProperties": false
+            },
+            "maxItems": 5,
+            "minItems": 1
+          }
+        },
+        "required": [
+          "title",
+          "claim",
+          "evidence",
+          "limitations",
+          "relevance",
+          "suggestion",
+          "sources"
+        ],
+        "additionalProperties": false
+      },
+      "maxItems": 3,
+      "minItems": 0
+    }
+  },
+  "required": [
+    "summary",
+    "coverage",
+    "coverage_notes",
+    "search_queries",
+    "sources_reviewed",
+    "findings"
+  ],
+  "additionalProperties": false
+}
