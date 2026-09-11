@@ -1,0 +1,2 @@
+#!/bin/sh
+exec python3 "${XDG_DATA_HOME:-$HOME/.local/share}/skills/agent-research/scripts/agent_research.py" "$@"
