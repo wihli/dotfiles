@@ -32,7 +32,7 @@
         "minLength": 1,
         "maxLength": 2000
       },
-      "maxItems": 20,
+      "maxItems": 160,
       "minItems": 1
     },
     "sources_reviewed": {
@@ -42,7 +42,7 @@
         "minLength": 1,
         "maxLength": 4000
       },
-      "maxItems": 30,
+      "maxItems": 160,
       "minItems": 0
     },
     "findings": {

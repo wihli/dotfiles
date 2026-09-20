@@ -106,6 +106,21 @@ class ResearchTests(unittest.TestCase):
         data=result(); data['findings'][0]['evidence']='x'*8000
         self.assertEqual(len(m.prepare_result(data,set())['findings']),1)
 
+    def test_adaptive_search_preserves_queries_and_reads_beyond_initial_pass(self):
+        data = result()
+        data['search_queries'] = [f'Follow-up question {n}' for n in range(40)]
+        data['sources_reviewed'] += [f'https://example.com/paper/{n}' for n in range(45)]
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            with patch.object(m, 'run_provider', return_value=(data, [])):
+                m.scan(root, {'brief_text':'Test', 'model':'gpt-5.6-sol',
+                             'timezone':'America/Los_Angeles', 'weekday':4, 'hour':9},
+                       force=True, now=NOW)
+            state = json.loads((root/'state.json').read_text())
+            saved = json.loads(Path(state['last_report']['report_path']).with_suffix('.json').read_text())
+            self.assertEqual(saved['search_queries'], data['search_queries'])
+            self.assertEqual(saved['sources_reviewed'], data['sources_reviewed'])
+
     def test_partial_coverage_requires_explanation(self):
         data=result(); data['coverage']='partial'
         with self.assertRaises(ValueError): m.prepare_result(data,set())
