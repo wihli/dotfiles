@@ -38,6 +38,9 @@ git diff main..HEAD            # or HEAD~N..HEAD; staged: git diff --cached
 ### 2. Understand intent and context
 
 - Read commit messages; read the PR body if one is referenced.
+- For consequential changes, use an applicable context skill, such as `code-context` when available, to establish purpose and expectations before judging correctness. If none is available, follow linked tickets, decisions, related changes, and affected consumers to establish the intended outcome, this PR's contribution, and constraints.
+- Reuse current, sourced context. Separate accepted decisions from proposals and inference; identify conflicts, stale assumptions, and unavailable evidence. Keep research focused on questions that could change the review.
+- Derive concrete review scenarios and expected test behavior from those expectations, including behavior absent from the diff. If an unresolved decision changes the verdict, state the question and qualify the conclusion while continuing supported checks.
 - For every changed hunk, read the enclosing function/block in full — never review a hunk in isolation.
 - For every changed function signature, schema, or config default: grep the callers/consumers and check each call site.
 
@@ -88,6 +91,9 @@ A candidate that fails any check is dropped, or — only if genuinely unresolvab
 
 ### Summary
 2–4 sentences: what the change does + assessment (approve / approve with fixes / request changes) + what you verified overall.
+
+### Purpose and expectations
+For consequential changes, give a short account of the problem, this PR's contribution, and the expectations guiding the review. Cite sources beside claims, label inference, and state unresolved decisions or access gaps. Explain which scenarios follow from these expectations; routine edits can keep their purpose in the summary.
 
 ### Findings
 Ordered by severity. Each: `**[Severity] <title> — <file:line>**`, verbatim quote, failure scenario, counter-evidence checked, one-line suggested fix.

@@ -112,6 +112,7 @@ Everything you write for a human — chat, PR bodies, review comments, commits, 
 
 Applies to any diff/PR/code review, regardless of model:
 
+- **Purpose and expectations**: Before judging consequential behavior or test coverage, establish the intended outcome, this change's contribution, and relevant organizational constraints. Use applicable context skills, such as `code-context` when available, and sources beyond the diff where intent needs support. Distinguish accepted requirements from inference; surface unresolved decisions and derive review scenarios from the supported expectations.
 - **Evidence gate**: before reporting a finding, re-read the cited lines fresh (not from memory of the diff), quote them, name a concrete failure scenario (input/state => wrong outcome), and check for counter-evidence (upstream guard, caller validation, test). Any missing => drop the finding or ask it as an explicit question.
 - **Clean is valid**: zero findings is legitimate; never pad to look thorough. Empty section => "None identified." + what you checked.
 - **Severity = consequence**: Blocker (data loss/security/outage/broken deploy) > High (real bug, plausible path) > Medium (risk needing a decision) > Low (discretionary) > Info. Tag every finding; severity is not effort-to-fix.
