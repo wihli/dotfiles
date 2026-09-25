@@ -40,7 +40,9 @@
       "items": {
         "type": "string",
         "minLength": 1,
-        "maxLength": 4000
+        "maxLength": 4000,
+        "pattern": "^https://[^\\s]+$",
+        "description": "A bare public HTTPS URL. Do not include a title, Markdown link, or commentary."
       },
       "maxItems": 160,
       "minItems": 0
@@ -88,7 +90,9 @@
                 "url": {
                   "type": "string",
                   "minLength": 1,
-                  "maxLength": 4000
+                  "maxLength": 4000,
+                  "pattern": "^https://[^\\s]+$",
+                  "description": "A bare public HTTPS URL. Do not include a title, Markdown link, or commentary."
                 },
                 "title": {
                   "type": "string",

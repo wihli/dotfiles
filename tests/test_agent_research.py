@@ -89,6 +89,21 @@ class ResearchTests(unittest.TestCase):
         keys = set(first['findings'][0]['source_keys'])
         self.assertEqual(m.prepare_result(result(), keys)['findings'], [])
 
+    def test_provider_schema_requires_bare_source_urls(self):
+        # Provider formatting must satisfy the worker before a report can be published.
+        schema = json.loads((m.ASSETS / 'schema.json').read_text())['properties']
+        fields = [schema['sources_reviewed']['items'],
+                  schema['findings']['items']['properties']['sources']['items']['properties']['url']]
+        for field in fields:
+            pattern = field['pattern']
+            self.assertRegex('https://arxiv.org/abs/2609.01234v1', pattern)
+            for value in ['Study — https://arxiv.org/abs/2609.01234v1',
+                          'https://arxiv.org/abs/2609.01234v1 trailing text',
+                          'file:///etc/passwd']:
+                with self.subTest(value=value):
+                    self.assertNotRegex(value, pattern)
+        self.assertEqual(len(m.prepare_result(result(), set())['findings']), 1)
+
     def test_unsafe_or_unread_sources_fail(self):
         for url in ['file:///etc/passwd','javascript:alert(1)','https://other.test/unread']:
             data=result(); data['findings'][0]['sources'][0]['url']=url
