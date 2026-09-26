@@ -77,6 +77,36 @@ def participants_of(metadata):
              "effort": settings.get(provider + "_effort")} for provider, harness in LEGACY_HARNESS.items()]
 
 
+def verdict_of(run, names):
+    """Verdict facts plus a scorecard: on claims one participant asserted and another
+    disputed, whoever sided with the coordinator's disposition was right."""
+    verdict = read_json(run / "verdict.json")
+    if not isinstance(verdict, dict):
+        return None
+    scorecard = {name: {"right": 0, "wrong": 0} for name in names}
+    disputed = 0
+    for claim in verdict.get("claims") or []:
+        positions = claim.get("positions") or {}
+        if not {"asserts", "disputes"} <= set(positions.values()):
+            continue
+        disputed += 1
+        correct = {"supported": "asserts", "rejected": "disputes"}.get(claim.get("disposition"))
+        if not correct:
+            continue
+        for name, position in positions.items():
+            if name in scorecard and position != "silent":
+                scorecard[name]["right" if position == correct else "wrong"] += 1
+    truth = verdict.get("ground_truth") or {}
+    return {
+        "material_disagreement": verdict.get("material_disagreement"),
+        "selected_backbone": verdict.get("selected_backbone"),
+        "claims": len(verdict.get("claims") or []),
+        "disputed_claims": disputed,
+        "scorecard": scorecard,
+        "ground_truth": truth.get("outcome") if isinstance(truth, dict) else None,
+    }
+
+
 def thabto_run(run):
     metadata = read_json(run / "run.json")
     if not isinstance(metadata, dict):
@@ -92,9 +122,18 @@ def thabto_run(run):
             report = harness_report(participant["harness"], folder)
             resolved = resolved or report["resolved_model"]
             answer = folder / "answer.md"
+            recorded = ((metadata.get("stages") or {}).get(name) or {}).get(participant["name"]) or {}
+            # Driver wall-clock covers the whole child process; harness self-reports and
+            # file timestamps are fallbacks for runs recorded before the driver kept time.
+            if isinstance(recorded.get("seconds"), (int, float)):
+                minutes = round(recorded["seconds"] / 60, 4)
+            elif report["minutes"] is not None:
+                minutes = report["minutes"]
+            else:
+                minutes = minutes_between(folder / "prompt.md", answer)
             stages[name] = {
-                "minutes": report["minutes"] if report["minutes"] is not None
-                else minutes_between(folder / "prompt.md", answer),
+                "minutes": minutes,
+                "outcome": recorded.get("outcome"),
                 "answer_bytes": answer.stat().st_size if answer.exists() else None,
                 "cost_usd": report["cost_usd"],
                 "tokens": report["tokens"],
@@ -105,7 +144,7 @@ def thabto_run(run):
         "started_at": started_at_from_run_id(run.name),
         "status": metadata.get("status"),
         "synthesized": (run / "synthesis.md").exists(),
-        "verdict": (run / "verdict.json").exists(),
+        "verdict": verdict_of(run, [p["name"] for p in participants]),
         "error": metadata.get("error"),
         "participants": participants,
     }
@@ -124,6 +163,7 @@ def by_participant(runs):
             groups[key].append((run, participant))
     rows = []
     for (harness, model), members in sorted(groups.items(), key=lambda item: (str(item[0][0]), str(item[0][1]))):
+        verdicts = [(run["verdict"], p["name"]) for run, p in members if run["verdict"]]
         rows.append({
             "harness": harness, "model": model, "runs": len(members),
             "failed": sum(run["status"] == "failed" for run, _ in members),
@@ -132,6 +172,11 @@ def by_participant(runs):
             "mean_cost_usd": mean(sum(s["cost_usd"] for s in p["stages"].values() if s["cost_usd"] is not None)
                                   if any(s["cost_usd"] is not None for s in p["stages"].values()) else None
                                   for _, p in members),
+            "verdicts": len(verdicts),
+            "selected": sum(v["selected_backbone"] == name for v, name in verdicts),
+            "disputed_right": sum(v["scorecard"].get(name, {}).get("right", 0) for v, name in verdicts),
+            "disputed_wrong": sum(v["scorecard"].get(name, {}).get("wrong", 0) for v, name in verdicts),
+            "truth_wins": sum(v["ground_truth"] in (name, "both") for v, name in verdicts),
         })
     return rows
 
@@ -141,10 +186,15 @@ def thabto_summary(state):
     for path in sorted(p for p in state.iterdir() if p.is_dir()) if state.is_dir() else []:
         run = thabto_run(path)
         (runs if run else unreadable).append(run or path.name)
+    verdicts = [r["verdict"] for r in runs if r["verdict"]]
     return {
         "state": str(state),
         "counts": {"runs": len(runs), "synthesized": sum(r["synthesized"] for r in runs),
                    "failed": sum(r["status"] == "failed" for r in runs), "unreadable": len(unreadable)},
+        "verdicts": {"runs_with_verdict": len(verdicts),
+                     "material_disagreement": {"true": sum(v["material_disagreement"] is True for v in verdicts),
+                                               "false": sum(v["material_disagreement"] is False for v in verdicts)},
+                     "labeled": sum(v["ground_truth"] is not None for v in verdicts)},
         "runs": runs,
         "unreadable": unreadable,
         "by_participant": by_participant(runs),
@@ -214,13 +264,18 @@ def format_text(summary):
             lines.append(f"      error: {run['error']}")
     for name in thabto["unreadable"]:
         lines.append(f"  {name}  unreadable (no run.json)")
+    v = thabto["verdicts"]
+    lines.append(f"  verdicts: {v['runs_with_verdict']} runs (material disagreement true {v['material_disagreement']['true']}, "
+                 f"false {v['material_disagreement']['false']}; ground truth labeled {v['labeled']})")
     lines.append("")
-    lines.append("By participant (harness, model): runs failed | mean minutes attempt/review/revision | mean cost")
+    lines.append("By participant (harness, model): runs failed | mean minutes attempt/review/revision | mean cost | "
+                 "verdicts selected right/wrong-on-disputed truth-wins")
     for g in thabto["by_participant"]:
         m = g["mean_minutes"]
         cost = "-" if g["mean_cost_usd"] is None else f"${g['mean_cost_usd']:.2f}"
         lines.append(f"  {g['harness']:<12} {str(g['model']):<24} {g['runs']:>4} {g['failed']:>6} | "
-                     f"{fmt_minutes(m['attempt'])}/{fmt_minutes(m['review'])}/{fmt_minutes(m['revision'])} | {cost}")
+                     f"{fmt_minutes(m['attempt'])}/{fmt_minutes(m['review'])}/{fmt_minutes(m['revision'])} | {cost:>7} | "
+                     f"{g['verdicts']:>3} {g['selected']:>3} {g['disputed_right']}/{g['disputed_wrong']} {g['truth_wins']}")
     lines.append("")
     d = summary["delarbitrate"]
     c = d["counts"]

@@ -19,10 +19,22 @@ import uuid
 
 
 PROVIDERS = ("claude", "codex")
+# The harness each provider runs in. run.json names harnesses explicitly so that runs
+# stay comparable once the same model can run in more than one harness.
+HARNESSES = {"claude": "claude-code", "codex": "codex"}
+RUN_SCHEMA = 2
 
 
 class Cancelled(RuntimeError):
     pass
+
+
+class TimedOut(RuntimeError):
+    pass
+
+
+def utc_now():
+    return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
 RULES = """You are a THABTO provider child. Investigate read-only using the supplied
@@ -79,7 +91,7 @@ def stop_group(process):
     process.wait()
 
 
-def invoke(provider, stage, prompt, args, run, cancelled):
+def invoke(provider, stage, prompt, args, run, cancelled, record):
     folder = run / stage / provider
     folder.mkdir(parents=True)
     (folder / "prompt.md").write_text(prompt, encoding="utf-8")
@@ -90,6 +102,8 @@ def invoke(provider, stage, prompt, args, run, cancelled):
     if provider == "codex":
         for key in ("CLAUDE_CODE_OAUTH_TOKEN", "ANTHROPIC_API_KEY", "ANTHROPIC_AUTH_TOKEN"):
             env.pop(key, None)
+    record.update(started_at=utc_now(), finished_at=None, seconds=None, exit_code=None, outcome=None)
+    started = time.monotonic()
     try:
         if cancelled.is_set():
             raise Cancelled("Cancelled before launch.")
@@ -99,25 +113,30 @@ def invoke(provider, stage, prompt, args, run, cancelled):
                 (folder / "stderr.log").open("wb") as stderr:
             process = subprocess.Popen(command, cwd=args.workspace, env=env, stdin=stdin,
                                        stdout=stdout, stderr=stderr, start_new_session=True)
-            started = time.monotonic()
             try:
                 while process.poll() is None:
                     if cancelled.wait(0.1):
                         raise Cancelled("Cancelled while provider was running.")
                     if time.monotonic() - started >= args.timeout:
-                        raise RuntimeError(f"{provider} timed out after {args.timeout:g} seconds.")
+                        raise TimedOut(f"{provider} timed out after {args.timeout:g} seconds.")
+                record["exit_code"] = process.returncode
                 if process.returncode:
                     raise RuntimeError(f"{provider} exited {process.returncode}; inspect {folder / 'stderr.log'}.")
             finally:
                 stop_group(process)
         answer = answer_from(provider, folder)
         (folder / "answer.md").write_text(answer, encoding="utf-8")
+        record["outcome"] = "answered"
         print(f"{stage}: {provider} finished", file=sys.stderr, flush=True)
         return answer
     except Exception as error:
         cancelled.set()
+        record["outcome"] = {Cancelled: "cancelled", TimedOut: "timeout"}.get(type(error), "failed")
         (folder / "error.txt").write_text(traceback.format_exc(), encoding="utf-8")
         raise
+    finally:
+        record["finished_at"] = utc_now()
+        record["seconds"] = round(time.monotonic() - started, 3)
 
 
 def prompt_for(stage, task, own="", peer=""):
@@ -142,7 +161,12 @@ def run_exchange(args):
     run.mkdir(parents=True, mode=0o700)
     task = args.task_file.read_text(encoding="utf-8")
     (run / "task.md").write_text(task, encoding="utf-8")
-    metadata = {"status": "running", "workspace": str(args.workspace), "mode": "read-only",
+    metadata = {"schema": RUN_SCHEMA, "status": "running", "started_at": utc_now(), "finished_at": None,
+                "workspace": str(args.workspace), "mode": "read-only",
+                "participants": [{"name": provider, "harness": HARNESSES[provider],
+                                  "model": getattr(args, provider + "_model"),
+                                  "effort": getattr(args, provider + "_effort")} for provider in PROVIDERS],
+                "stages": {},
                 "settings": {key: str(value) for key, value in vars(args).items()}}
     write_json(run / "run.json", metadata)
     print(f"Run: {run}", file=sys.stderr, flush=True)
@@ -159,12 +183,14 @@ def run_exchange(args):
         for stage in ("attempt", "review", "revision"):
             results = {}
             errors = []
+            records = metadata["stages"][stage] = {}
             with ThreadPoolExecutor(max_workers=2) as pool:
                 futures = []
                 for provider, peer in (("claude", "codex"), ("codex", "claude")):
                     prompt = prompt_for(stage, task, attempts.get(provider, ""),
                                         reviews.get(peer, "") if stage == "revision" else attempts.get(peer, ""))
-                    future = pool.submit(invoke, provider, stage, prompt, args, run, cancelled)
+                    records[provider] = {}
+                    future = pool.submit(invoke, provider, stage, prompt, args, run, cancelled, records[provider])
                     futures.append((provider, future))
                 names = {future: provider for provider, future in futures}
                 for future in as_completed(names):
@@ -186,7 +212,8 @@ def run_exchange(args):
             "Consult attempt/ and review/ for the evidence behind changes or disagreement.\n"
             "Write one answer to the user's task. Resolve claims through evidence, not agreement.\n"
             "State unresolved disagreement and missing verification. Do not select a winner by default.\n"
-            "Save that answer as synthesis.md in this run, then return it with the run path.\n",
+            "Record the answer and a verdict with scripts/thabto_finish.py as SKILL.md describes,\n"
+            "then return the answer with the run path.\n",
             encoding="utf-8")
         metadata["status"] = "awaiting_synthesis"
         print(f"Exchange ready for coordinator synthesis: {run}", flush=True)
@@ -197,6 +224,7 @@ def run_exchange(args):
         print(f"THABTO {metadata['status']}: {error}\nRetained run: {run}", file=sys.stderr, flush=True)
         return 130 if interrupted.is_set() else 1
     finally:
+        metadata["finished_at"] = utc_now()
         write_json(run / "run.json", metadata)
         for sig, handler in handlers.items():
             signal.signal(sig, handler)

@@ -81,7 +81,20 @@ class ThabtoTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         run = self.run_path()
         self.assertEqual((run / "task.md").read_text(), self.task.read_text())
-        self.assertEqual(json.loads((run / "run.json").read_text())["status"], "awaiting_synthesis")
+        metadata = json.loads((run / "run.json").read_text())
+        self.assertEqual(metadata["status"], "awaiting_synthesis")
+        self.assertEqual(metadata["schema"], 2)
+        self.assertRegex(metadata["started_at"], r"^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\dZ$")
+        self.assertGreaterEqual(metadata["finished_at"], metadata["started_at"])
+        self.assertEqual(metadata["participants"], [
+            {"name": "claude", "harness": "claude-code", "model": "test-claude", "effort": "high"},
+            {"name": "codex", "harness": "codex", "model": "test-codex", "effort": "high"}])
+        for stage in ("attempt", "review", "revision"):
+            for provider in ("claude", "codex"):
+                record = metadata["stages"][stage][provider]
+                self.assertEqual((record["outcome"], record["exit_code"]), ("answered", 0))
+                self.assertGreaterEqual(record["seconds"], 0)
+                self.assertGreaterEqual(record["finished_at"], record["started_at"])
         for provider, peer in (("claude", "codex"), ("codex", "claude")):
             attempt = (run / f"attempt/{provider}/prompt.md").read_text()
             self.assertNotIn("attempt answer", attempt)
@@ -128,8 +141,13 @@ class ThabtoTests(unittest.TestCase):
         run = self.run_path()
         self.assertFalse((run / "review").exists())
         self.assertIn("synthetic provider failure", (run / "attempt/claude/stderr.log").read_text())
-        self.assertEqual(json.loads((run / "run.json").read_text())["status"], "failed")
+        metadata = json.loads((run / "run.json").read_text())
+        self.assertEqual(metadata["status"], "failed")
         self.assertIn(str(run), result.stderr)
+        claude = metadata["stages"]["attempt"]["claude"]
+        self.assertEqual((claude["outcome"], claude["exit_code"]), ("failed", 7))
+        self.assertIn(metadata["stages"]["attempt"]["codex"]["outcome"], ("answered", "cancelled"))
+        self.assertNotIn("review", metadata["stages"])
 
     def test_missing_or_invalid_final_answer_is_a_failure(self):
         for task in ("MALFORMED", "ERROR_RESULT", "EMPTY", "MISSING_FINAL"):
@@ -148,6 +166,10 @@ class ThabtoTests(unittest.TestCase):
         self.assertFalse((self.root / "marker").exists())
         logs = list(self.run_path().glob("attempt/*/stderr.log"))
         self.assertTrue(any(path.read_text() for path in logs))
+        outcomes = {record["outcome"] for record in
+                    json.loads((self.run_path() / "run.json").read_text())["stages"]["attempt"].values()}
+        self.assertIn("timeout", outcomes)
+        self.assertLessEqual(outcomes, {"timeout", "cancelled"})
 
     def test_sigterm_cancels_process_groups(self):
         self.task.write_text("STALL")

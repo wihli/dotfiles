@@ -43,11 +43,38 @@ If a provider fails, report the exact failure and retained run path. Read its `e
 
 On success, the driver prints the exact run directory. Read its `synthesis-prompt.md`, original `task.md`, and both `revision/<provider>/answer.md` files. Read the original attempts and reviews where needed to resolve a claim.
 
-Write one answer to the user's question. Prefer supported claims; agreement alone proves nothing. State unresolved disagreement and verification limits. Save the exact answer as `synthesis.md` in that run, then return the answer and run path. The coordinator performs this step; the driver stops at `awaiting_synthesis`.
+Write one answer to the user's question. Prefer supported claims; agreement alone proves nothing. State unresolved disagreement and verification limits.
+
+Then record the outcome so runs can be compared later. Save the exact answer to a temporary file and write a verdict JSON file with this shape:
+
+```json
+{
+  "schema": 1,
+  "coordinator": {"harness": "claude-code", "model": "<your model id>"},
+  "material_disagreement": true,
+  "selected_backbone": "codex",
+  "claims": [
+    {"id": "c1", "text": "<one decisive claim from the exchange>",
+     "positions": {"claude": "asserts", "codex": "disputes"},
+     "disposition": "supported", "basis": "evidence"}
+  ],
+  "ground_truth": null
+}
+```
+
+- `positions`: one entry per participant `name` in the run's `run.json`; each is `asserts`, `disputes`, or `silent`.
+- `disposition`: your ruling on the claim after checking evidence: `supported`, `rejected`, or `unresolved`. `basis`: `evidence`, `preference`, or `unverified`.
+- `material_disagreement`: `true` exactly when some claim has both an `asserts` and a `disputes` position.
+- `selected_backbone`: the participant whose revision your answer follows most closely, `merged`, or `none`.
+- `ground_truth`: leave `null`; label it later when reality settles the question.
+
+Run `python3 "<skill-directory>/scripts/thabto_finish.py" --run "<run>" --synthesis "<answer-file>" --verdict "<verdict-file>"`. It validates the verdict, stores `synthesis.md` and `verdict.json` in the run, and sets the status to `synthesized`. Fix the named field and rerun if it rejects the verdict. Then return the answer and run path. The coordinator performs this step; the driver stops at `awaiting_synthesis`.
+
+When the real outcome becomes known — a merged fix, a confirmed root cause — record it: `python3 "<skill-directory>/scripts/thabto_finish.py" --run "<run>" --label <participant|both|neither|unknown> --note "<what settled it>"`.
 
 ## Saved exchange
 
-Runs live under `$XDG_STATE_HOME/thabto/<run-id>/`, defaulting to `~/.local/state/thabto/<run-id>/`. Each run directory is private to the user. Each stage/provider directory contains `prompt.md`, `command.json`, `stdout.log`, `stderr.log`, and, after success, `answer.md`. Codex also writes `final-message.md`. Failures retain `error.txt`. `run.json` records execution status and requested settings; raw provider output retains any provider-reported usage and model details. The driver does not record the child environment.
+Runs live under `$XDG_STATE_HOME/thabto/<run-id>/`, defaulting to `~/.local/state/thabto/<run-id>/`. Each run directory is private to the user. Each stage/provider directory contains `prompt.md`, `command.json`, `stdout.log`, `stderr.log`, and, after success, `answer.md`. Codex also writes `final-message.md`. Failures retain `error.txt`. `run.json` records status (`running`, `awaiting_synthesis`, `synthesized`, `failed`, `cancelled`), the participants with their harness, model, and effort, and per-stage timing and exit codes; raw provider output retains any provider-reported usage and model details. After synthesis the run also holds `synthesis.md` and `verdict.json`. The driver does not record the child environment.
 
 ## Stats
 
