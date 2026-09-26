@@ -49,6 +49,10 @@ Write one answer to the user's question. Prefer supported claims; agreement alon
 
 Runs live under `$XDG_STATE_HOME/thabto/<run-id>/`, defaulting to `~/.local/state/thabto/<run-id>/`. Each run directory is private to the user. Each stage/provider directory contains `prompt.md`, `command.json`, `stdout.log`, `stderr.log`, and, after success, `answer.md`. Codex also writes `final-message.md`. Failures retain `error.txt`. `run.json` records execution status and requested settings; raw provider output retains any provider-reported usage and model details. The driver does not record the child environment.
 
+## Stats
+
+`python3 "<skill-directory>/scripts/thabto_stats.py"` summarizes every retained THABTO run and every Delarbitrate run under `$XDG_STATE_HOME`: status, synthesis presence, resolved models, per-stage minutes, Claude cost, and the Delarbitrate judge's selections. It only reads. Add `--json` for machine-readable output, or `--thabto-state` / `--delarbitrate-state` to point at other directories. Fields a run never recorded print as `-` or `null`; they are not errors.
+
 ## Installation and discovery
 
 Canonical source: `wihli-dotfiles/skills/.local/share/skills/thabto/`. Install through the repository's `install.sh`; never edit installed copies. The shared installation is `~/.local/share/skills/thabto`. Claude Code uses `~/.claude/skills/thabto`; Codex, Pi, and OpenCode use the shared `~/.agents/skills/thabto` discovery path. The installer also maintains `~/.codex/skills/thabto`.
