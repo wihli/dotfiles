@@ -8,10 +8,10 @@ Run the project's quality gates and report status.
 
 ## Steps
 1. Check git status for uncommitted changes
-2. Detect project type (Python/JS/TS)
-3. Run tests (pytest / npm test)
-4. Run type checks (mypy / tsc --noEmit)
-5. Run linters (ruff check / eslint)
+2. Detect project type (Python/JS/TS/Rust)
+3. Run tests (pytest / npm test / cargo test)
+4. Run type/build checks (mypy / tsc --noEmit / cargo check)
+5. Run linters (ruff check / eslint / cargo clippy)
 6. Report pass/fail for each gate
 
 ## Output Format
@@ -19,7 +19,7 @@ Run the project's quality gates and report status.
 ```
 ## Quality Gate Results
 - [ ] Tests: PASS/FAIL (X passed, Y failed)
-- [ ] Types: PASS/FAIL
+- [ ] Types/build: PASS/FAIL
 - [ ] Lint: PASS/FAIL (X issues)
 - [ ] Git: Clean / X uncommitted changes
 ```
