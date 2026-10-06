@@ -15,13 +15,21 @@ DRIVER = SKILL / "scripts/thabto.py"
 FAKE = r'''#!/usr/bin/env python3
 import json, os, pathlib, subprocess, sys, time
 args = sys.argv[1:]
-provider = "claude" if "--print" in args else "codex"
+if "--print" in args:
+    provider = "claude"
+elif "run" in args and "--agent" in args:
+    provider = "opencode"
+elif "-p" in args:
+    provider = "pi"
+else:
+    provider = "codex"
 model = args[args.index("--model") + 1]
 prompt = sys.stdin.read()
 stage = prompt.split("# Stage: ", 1)[1].splitlines()[0]
 print(json.dumps({"args": args, "cwd": os.getcwd(),
     "child": os.environ.get("THABTO_CHILD"),
-    "claude_token": "CLAUDE_CODE_OAUTH_TOKEN" in os.environ}), file=sys.stderr)
+    "claude_token": "CLAUDE_CODE_OAUTH_TOKEN" in os.environ,
+    "opencode_config": os.environ.get("OPENCODE_CONFIG")}), file=sys.stderr)
 if "STALL" in prompt:
     marker = pathlib.Path(os.environ["MARKER"])
     subprocess.Popen([sys.executable, "-c",
@@ -41,6 +49,25 @@ if provider == "claude":
     else:
         print(json.dumps({"type": "result", "is_error": "ERROR_RESULT" in prompt,
             "result": "" if "EMPTY" in prompt else answer}))
+elif provider == "opencode":
+    if "OC_ERROR" in prompt:
+        print(json.dumps({"type": "error", "error": {"name": "ProviderError", "message": "synthetic opencode error"}}))
+        sys.exit(0)
+    for event in ({"type": "step_start", "part": {}}, {"type": "text", "part": {"text": "interim narration"}},
+                  {"type": "tool_use", "part": {"tool": "read"}}, {"type": "step_finish", "part": {}},
+                  {"type": "step_start", "part": {}}, {"type": "text", "part": {"text": answer}},
+                  {"type": "step_finish", "part": {"cost": 0.01}}):
+        print(json.dumps(event))
+elif provider == "pi":
+    print(json.dumps({"type": "session", "id": "s1", "version": 1}))
+    print(json.dumps({"type": "message_end", "message": {"role": "user", "content": [{"type": "text", "text": "q"}]}}))
+    if "PI_ERROR" in prompt:
+        print(json.dumps({"type": "message_end", "message": {"role": "assistant", "content": [],
+            "stopReason": "error", "errorMessage": "synthetic pi error"}}))
+        sys.exit(0)
+    print(json.dumps({"type": "message_end", "message": {"role": "assistant", "stopReason": "stop",
+        "content": [{"type": "thinking", "thinking": "hmm"}, {"type": "text", "text": answer}]}}))
+    print(json.dumps({"type": "agent_end"}))
 else:
     print(json.dumps({"type": "item.completed", "item": {"type": "agent_message", "text": "interim"}}))
     print(json.dumps({"type": "turn.completed", "usage": {"input_tokens": 1}}))
@@ -67,11 +94,12 @@ class ThabtoTests(unittest.TestCase):
         self.command = [sys.executable, str(DRIVER), "--task-file", str(self.task),
                         "--workspace", str(self.workspace), "--claude-model", "test-claude",
                         "--codex-model", "test-codex", "--timeout", "30"]
-        for provider in ("claude", "codex"):
+        for provider in ("claude", "codex", "opencode", "pi"):
             executable = self.root / (provider + " fake")
             executable.write_text(FAKE)
             executable.chmod(0o755)
-            self.command += ["--" + provider + "-executable", str(executable)]
+            if provider in ("claude", "codex"):
+                self.command += ["--" + provider + "-executable", str(executable)]
 
     def run_driver(self, task=None, extra=()):
         if task:
@@ -242,6 +270,82 @@ class ThabtoTests(unittest.TestCase):
         prompt = (self.run_path() / "synthesis-prompt.md").read_text()
         self.assertIn(f"- {target}: attempt/{target}/answer.md (no revision: no review received)", prompt)
         self.assertIn("codex-2 (at review)", prompt)
+
+    def multi_harness(self, task=None, extra=()):
+        self.task.write_text(task or self.task.read_text())
+        command = [sys.executable, str(DRIVER), "--task-file", str(self.task), "--workspace", str(self.workspace),
+                   "--timeout", "30", "--seed", "3",
+                   "--participant", "codex:test-codex", "--participant", "opencode:openai/test-oc",
+                   "--participant", "pi:openai-codex/test-pi:medium",
+                   "--codex-executable", str(self.root / "codex fake"),
+                   "--opencode-executable", str(self.root / "opencode fake"),
+                   "--pi-executable", str(self.root / "pi fake"), *extra]
+        return subprocess.run(command, env=self.env, text=True, capture_output=True, timeout=90)
+
+    def latest_metadata(self):
+        run = sorted((self.root / "state/thabto").iterdir())[-1]
+        return run, json.loads((run / "run.json").read_text())
+
+    def test_opencode_and_pi_run_read_only_on_openai_models(self):
+        result = self.multi_harness()
+        self.assertEqual(result.returncode, 0, result.stderr)
+        run, metadata = self.latest_metadata()
+        self.assertEqual([p["name"] for p in metadata["participants"]], ["codex", "opencode", "pi"])
+        opencode = json.loads((run / "attempt/opencode/stderr.log").read_text())
+        for flag in ("run", "--pure", "--agent", "thabto-child", "--format", "json", "--variant", "high"):
+            self.assertIn(flag, opencode["args"])
+        self.assertEqual(opencode["args"][opencode["args"].index("--model") + 1], "openai/test-oc")
+        self.assertFalse(opencode["claude_token"])
+        config = Path(opencode["opencode_config"])
+        self.assertEqual(config, SKILL / "harness/opencode.json")
+        agent = json.loads(config.read_text())["agent"]["thabto-child"]
+        self.assertEqual(agent["mode"], "primary")
+        self.assertEqual({k for k, v in agent["permission"].items() if v == "allow"},
+                         {"read", "glob", "grep", "list", "external_directory"})
+        for denied in ("edit", "bash", "webfetch", "websearch", "task", "skill"):
+            self.assertEqual(agent["permission"][denied], "deny")
+        pi = json.loads((run / "attempt/pi/stderr.log").read_text())
+        for flag in ("-p", "--no-session", "--no-extensions", "--no-skills", "--no-prompt-templates", "--offline"):
+            self.assertIn(flag, pi["args"])
+        self.assertEqual(pi["args"][pi["args"].index("--tools") + 1], "read,grep,find,ls")
+        self.assertEqual(pi["args"][pi["args"].index("--mode") + 1], "json")
+        self.assertEqual(pi["args"][pi["args"].index("--model") + 1], "openai-codex/test-pi:medium")
+        self.assertFalse(pi["claude_token"])
+        self.assertIsNone(pi["opencode_config"])
+        for stage in ("attempt", "review", "revision"):
+            self.assertEqual((run / f"{stage}/opencode/answer.md").read_text().strip(),
+                             self.answer("opencode", stage, "openai/test-oc"))
+            self.assertEqual((run / f"{stage}/pi/answer.md").read_text().strip(),
+                             self.answer("pi", stage, "openai-codex/test-pi:medium"))
+        self.assertNotIn("interim", (run / "attempt/opencode/answer.md").read_text())
+        self.assertNotIn("hmm", (run / "attempt/pi/answer.md").read_text())
+        self.assertEqual(set(metadata["final_answers"]), {"codex", "opencode", "pi"})
+
+    def test_harness_reported_errors_drop_only_that_participant(self):
+        for marker, name, token in (("OC_ERROR", "opencode", "OpenCode reported an error"),
+                                    ("PI_ERROR", "pi", "Pi reported an error")):
+            with self.subTest(name=name):
+                result = self.multi_harness(marker)
+                self.assertEqual(result.returncode, 0, result.stderr)
+                run, metadata = self.latest_metadata()
+                self.assertEqual(metadata["stages"]["attempt"][name]["outcome"], "failed")
+                self.assertIn(token, (run / f"attempt/{name}/error.txt").read_text())
+                self.assertEqual(next(p for p in metadata["participants"] if p["name"] == name)["failed_at"], "attempt")
+                self.assertEqual(len(metadata["final_answers"]), 2)
+                self.assertNotIn(name, metadata["final_answers"])
+
+    def test_opencode_and_pi_accept_openai_models_only(self):
+        for spec in ("opencode:anthropic/claude-opus-5-5", "pi:anthropic/claude-opus-5-5", "pi:gpt-6-sol"):
+            with self.subTest(spec=spec):
+                command = [sys.executable, str(DRIVER), "--task-file", str(self.task), "--workspace", str(self.workspace),
+                           "--participant", "codex:test-codex", "--participant", spec,
+                           "--codex-executable", str(self.root / "codex fake"),
+                           "--opencode-executable", str(self.root / "opencode fake"),
+                           "--pi-executable", str(self.root / "pi fake")]
+                result = subprocess.run(command, env=self.env, text=True, capture_output=True, timeout=30)
+                self.assertNotEqual(result.returncode, 0)
+                self.assertIn("OpenAI models only", result.stderr)
+                self.assertFalse((self.root / "state/thabto").exists())
 
     def test_participant_spec_errors_are_explicit(self):
         base = [sys.executable, str(DRIVER), "--task-file", str(self.task), "--workspace", str(self.workspace),

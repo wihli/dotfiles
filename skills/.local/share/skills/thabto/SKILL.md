@@ -72,7 +72,7 @@ Then record the outcome so runs can be compared later. Save the exact answer to 
 
 Run `python3 "<skill-directory>/scripts/thabto_finish.py" --run "<run>" --synthesis "<answer-file>" --verdict "<verdict-file>"`. It validates the verdict, stores `synthesis.md` and `verdict.json` in the run, and sets the status to `synthesized`. Fix the named field and rerun if it rejects the verdict. Then return the answer and run path. The coordinator performs this step; the driver stops at `awaiting_synthesis`.
 
-When the real outcome becomes known — a merged fix, a confirmed root cause — record it: `python3 "<skill-directory>/scripts/thabto_finish.py" --run "<run>" --label <participant|both|neither|unknown> --note "<what settled it>"`.
+When the real outcome becomes known — a merged fix, a confirmed root cause — record it: `python3 "<skill-directory>/scripts/thabto_finish.py" --run "<run>" --label <participant|both|neither|unknown> --note "<what settled it>"`. `--pending` lists the runs still waiting for a label with the claims that divided the participants. If a later conversation reveals how a question THABTO investigated turned out, label that run before moving on; a verdict without a label only says which answer the coordinator preferred.
 
 ## Saved exchange
 

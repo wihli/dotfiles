@@ -1,0 +1,25 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "agent": {
+    "thabto-child": {
+      "mode": "primary",
+      "description": "THABTO read-only provider child. Investigates local sources; never edits, runs commands, or reaches the network.",
+      "permission": {
+        "read": "allow",
+        "glob": "allow",
+        "grep": "allow",
+        "list": "allow",
+        "external_directory": "allow",
+        "edit": "deny",
+        "bash": "deny",
+        "task": "deny",
+        "todowrite": "deny",
+        "question": "deny",
+        "webfetch": "deny",
+        "websearch": "deny",
+        "lsp": "deny",
+        "skill": "deny"
+      }
+    }
+  }
+}

@@ -76,14 +76,77 @@ def codex_answer(folder):
     return (folder / "final-message.md").read_text(encoding="utf-8")
 
 
+def jsonl_events(folder):
+    for line in (folder / "stdout.log").read_text(encoding="utf-8", errors="replace").splitlines():
+        try:
+            event = json.loads(line)
+        except ValueError:
+            continue
+        if isinstance(event, dict):
+            yield event
+
+
+def opencode_command(executable, model, effort, folder):
+    # The prompt arrives on stdin. The thabto-child agent in harness/opencode.json holds
+    # the read-only permissions; --pure keeps third-party plugins out of the child.
+    return [executable, "run", "--pure", "--format", "json", "--agent", "thabto-child",
+            "--model", model, "--variant", effort]
+
+
+def opencode_answer(folder):
+    # OpenCode emits completed text parts per step with no final aggregate, so the answer
+    # is the text of the last step that produced any.
+    texts, last = [], []
+    for event in jsonl_events(folder):
+        kind, part = event.get("type"), event.get("part") or {}
+        if kind == "error":
+            raise ValueError(f"OpenCode reported an error: {json.dumps(event.get('error'))[:300]}; inspect stdout.log.")
+        if kind == "step_start":
+            last, texts = (texts or last), []
+        elif kind == "text" and isinstance(part.get("text"), str):
+            texts.append(part["text"])
+    return "\n".join(texts or last)
+
+
+def pi_command(executable, model, effort, folder):
+    # The prompt arrives on stdin. The tool allowlist is Pi's read-only mode; extensions,
+    # skills, and templates stay off so the child is the plain harness.
+    return [executable, "-p", "--no-session", "--no-extensions", "--no-skills", "--no-prompt-templates",
+            "--offline", "--tools", "read,grep,find,ls", "--mode", "json", "--model", f"{model}:{effort}"]
+
+
+def pi_answer(folder):
+    # Pi streams deltas, then a message_end carrying the whole assistant message.
+    final = None
+    for event in jsonl_events(folder):
+        message = event.get("message") or {}
+        if event.get("type") == "message_end" and message.get("role") == "assistant":
+            final = message
+    if final is None:
+        raise ValueError("Pi produced no assistant message; inspect stdout.log.")
+    if final.get("stopReason") == "error":
+        raise ValueError(f"Pi reported an error: {str(final.get('errorMessage'))[:300]}; inspect stdout.log.")
+    return "\n".join(block.get("text", "") for block in final.get("content") or []
+                     if isinstance(block, dict) and block.get("type") == "text")
+
+
+SKILL_DIR = Path(__file__).resolve().parent.parent
+
 # Each harness: the short participant name, the CLI flag prefix (also the default
-# executable), how to build its read-only command, how to read its final answer, and
-# which credentials to withhold. Codex children never see Anthropic credentials.
+# executable), how to build its read-only command, how to read its final answer, which
+# credentials to withhold, extra environment, and which model ids it may run.
+# Only Claude Code may carry Claude: Anthropic limits Claude subscription sign-in to its
+# own apps, so OpenCode and Pi run OpenAI models only and never see Anthropic credentials.
 HARNESSES = {
-    "claude-code": {"short": "claude", "flag": "claude", "command": claude_command,
-                    "answer": claude_answer, "strip_env": ()},
-    "codex": {"short": "codex", "flag": "codex", "command": codex_command,
-              "answer": codex_answer, "strip_env": ANTHROPIC_ENV},
+    "claude-code": {"short": "claude", "flag": "claude", "command": claude_command, "answer": claude_answer,
+                    "strip_env": (), "env": {}, "model_prefixes": ()},
+    "codex": {"short": "codex", "flag": "codex", "command": codex_command, "answer": codex_answer,
+              "strip_env": ANTHROPIC_ENV, "env": {}, "model_prefixes": ()},
+    "opencode": {"short": "opencode", "flag": "opencode", "command": opencode_command, "answer": opencode_answer,
+                 "strip_env": ANTHROPIC_ENV, "env": {"OPENCODE_CONFIG": str(SKILL_DIR / "harness/opencode.json")},
+                 "model_prefixes": ("openai/",)},
+    "pi": {"short": "pi", "flag": "pi", "command": pi_command, "answer": pi_answer,
+           "strip_env": ANTHROPIC_ENV, "env": {}, "model_prefixes": ("openai-codex/",)},
 }
 
 
@@ -107,6 +170,7 @@ def invoke(participant, stage, prompt, args, run, cancelled, record):
     env.pop("CLAUDECODE", None)
     for key in harness["strip_env"]:
         env.pop(key, None)
+    env.update(harness["env"])
     record.update(started_at=utc_now(), finished_at=None, seconds=None, exit_code=None, outcome=None)
     started = time.monotonic()
     try:
@@ -296,6 +360,10 @@ def parse_participants(parser, args):
         parser.error("THABTO needs at least two participants.")
     participants, counts = [], {}
     for harness, model, effort in specs:
+        prefixes = HARNESSES[harness]["model_prefixes"]
+        if prefixes and not model.startswith(prefixes):
+            parser.error(f"{harness} runs OpenAI models only in THABTO (for example {prefixes[0]}gpt-6-sol); "
+                         f"got {model!r}. Claude participates through claude-code.")
         short = HARNESSES[harness]["short"]
         counts[short] = counts.get(short, 0) + 1
         name = short if counts[short] == 1 else f"{short}-{counts[short]}"

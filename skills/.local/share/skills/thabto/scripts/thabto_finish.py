@@ -4,6 +4,7 @@
 import argparse
 from datetime import datetime, timezone
 import json
+import os
 from pathlib import Path
 import sys
 
@@ -129,19 +130,60 @@ def label(run, outcome, note):
     print(f"Labeled ground truth {outcome!r}: {run}")
 
 
+def pending(state):
+    """List runs whose verdict still lacks a ground-truth label, with the claims that
+    divided the participants, so a human can label them in one pass."""
+    waiting = 0
+    for run in sorted(state.iterdir()) if state.is_dir() else []:
+        verdict = read_optional_json(run / "verdict.json")
+        if not isinstance(verdict, dict) or verdict.get("ground_truth"):
+            continue
+        waiting += 1
+        task = (run / "task.md").read_text(encoding="utf-8", errors="replace") if (run / "task.md").exists() else ""
+        print(f"\n{run.name}  selected={verdict.get('selected_backbone')}  "
+              f"disagreement={verdict.get('material_disagreement')}")
+        print("  task: " + " ".join(task.split())[:240])
+        for claim in verdict.get("claims") or []:
+            positions = claim.get("positions") or {}
+            if {"asserts", "disputes"} <= set(positions.values()):
+                who = ", ".join(f"{name}={position}" for name, position in positions.items())
+                print(f"  disputed {claim.get('id')} [{claim.get('disposition')}]: {claim.get('text')}  ({who})")
+    print(f"\n{waiting} run(s) await a ground-truth label." if waiting else "No runs await a ground-truth label.")
+
+
+def read_optional_json(path):
+    try:
+        return json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None
+
+
 def parse_args():
+    state_home = Path(os.environ.get("XDG_STATE_HOME") or Path.home() / ".local/state")
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--run", type=Path, required=True, help="THABTO run directory.")
+    parser.add_argument("--run", type=Path, help="THABTO run directory.")
     parser.add_argument("--synthesis", type=Path, help="File holding the coordinator's final answer.")
     parser.add_argument("--verdict", type=Path, help="JSON file holding the structured verdict.")
     parser.add_argument("--label", help="Ground-truth outcome: a participant name, both, neither, or unknown.")
     parser.add_argument("--note", default="", help="What settled the ground truth (used with --label).")
+    parser.add_argument("--pending", action="store_true", help="List runs still awaiting a ground-truth label.")
+    parser.add_argument("--state", type=Path, default=state_home / "thabto",
+                        help="THABTO run directory root for --pending (default: $XDG_STATE_HOME/thabto).")
     args = parser.parse_args()
+    if args.pending:
+        if args.run or args.synthesis or args.verdict or args.label:
+            parser.error("--pending takes no other action; pass it alone (optionally with --state).")
+        args.state = args.state.resolve()
+        if not args.state.is_dir():
+            parser.error(f"State {str(args.state)!r} is not a directory.")
+        return args
     recording = args.synthesis is not None or args.verdict is not None
     if recording and (args.synthesis is None or args.verdict is None or args.label):
         parser.error("Pass both --synthesis and --verdict to record a synthesis, or --label alone to label one.")
     if not recording and not args.label:
-        parser.error("Pass --synthesis with --verdict, or --label.")
+        parser.error("Pass --synthesis with --verdict, --label, or --pending.")
+    if args.run is None:
+        parser.error("--run is required; pass the run path the driver printed.")
     args.run = args.run.resolve()
     if not args.run.is_dir():
         parser.error(f"Run {str(args.run)!r} is not a directory; pass the run path the driver printed.")
@@ -151,7 +193,9 @@ def parse_args():
 def main():
     args = parse_args()
     try:
-        if args.label:
+        if args.pending:
+            pending(args.state)
+        elif args.label:
             label(args.run, args.label, args.note)
         else:
             finish(args.run, args.synthesis.resolve(), args.verdict.resolve())

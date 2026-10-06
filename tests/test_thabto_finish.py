@@ -148,6 +148,32 @@ class ThabtoFinishTests(unittest.TestCase):
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("['claude', 'codex']", result.stderr)
 
+    def test_pending_lists_only_unlabeled_verdicts_with_disputed_claims(self):
+        state = self.root / "state"
+        unlabeled = state / "20260926T003110Z-aaaaaaaaaaaa"
+        unlabeled.mkdir(parents=True)
+        (unlabeled / "task.md").write_text("# User request (verbatim)\nInvestigate the   alert in   production.\n")
+        (unlabeled / "verdict.json").write_text(json.dumps(VERDICT))
+        labeled = state / "20260927T000000Z-bbbbbbbbbbbb"
+        labeled.mkdir()
+        done = copy.deepcopy(VERDICT)
+        done["ground_truth"] = {"outcome": "codex", "note": "", "labeled_at": "2026-10-01T00:00:00Z"}
+        (labeled / "verdict.json").write_text(json.dumps(done))
+        (state / "20260928T000000Z-cccccccccccc").mkdir()  # no verdict yet
+        result = subprocess.run([sys.executable, str(FINISH), "--pending", "--state", str(state)],
+                                text=True, capture_output=True, timeout=30)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("20260926T003110Z-aaaaaaaaaaaa  selected=codex  disagreement=True", result.stdout)
+        self.assertIn("task: # User request (verbatim) Investigate the alert in production.", result.stdout)
+        self.assertIn("disputed c1 [supported]: The sum query double-counts the shared queue.  (claude=asserts, codex=disputes)",
+                      result.stdout)
+        self.assertNotIn("c2", result.stdout)  # not disputed: one side silent
+        self.assertNotIn("bbbbbbbbbbbb", result.stdout)
+        self.assertIn("1 run(s) await a ground-truth label.", result.stdout)
+        result = subprocess.run([sys.executable, str(FINISH), "--pending", "--state", str(state), "--label", "codex"],
+                                text=True, capture_output=True, timeout=30)
+        self.assertNotEqual(result.returncode, 0)
+
     def test_argument_combinations(self):
         for extra in (["--synthesis", str(self.synthesis)], ["--label", "codex", "--verdict", str(self.synthesis)], []):
             with self.subTest(extra=extra):
