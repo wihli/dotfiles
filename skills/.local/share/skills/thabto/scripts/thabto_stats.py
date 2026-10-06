@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
-"""Summarize retained THABTO and Delarbitrate runs. Read-only. Python 3.10+."""
+"""Summarize retained THABTO runs. Read-only. Python 3.10+."""
 
 import argparse
-from collections import Counter, defaultdict
-from datetime import datetime, timezone
+from collections import defaultdict
+from datetime import datetime
 import json
 import os
 from pathlib import Path
@@ -201,49 +201,6 @@ def thabto_summary(state):
     }
 
 
-def delarbitrate_run(run):
-    config = read_json(run / "effective-config.json") or {}
-    manifest = read_json(run / "manifest.json") or {}
-    judgments = read_json(run / "normalized-judgments.json")
-    disagreement = None
-    if isinstance(judgments, list) and judgments:
-        disagreement = any(bool(j.get("material_disagreement")) for j in judgments if isinstance(j, dict))
-    started, finished = manifest.get("started_at_unix_ms"), manifest.get("finished_at_unix_ms")
-    minutes = None
-    if isinstance(started, (int, float)) and isinstance(finished, (int, float)):
-        minutes = round((finished - started) / 60000, 4)
-    return {
-        "run_id": run.name,
-        "started_at": datetime.fromtimestamp(started / 1000, timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
-        if isinstance(started, (int, float)) else None,
-        "status": manifest.get("status") or "incomplete",
-        "selected": manifest.get("selected_candidate_backbone"),
-        "arbitration_path": manifest.get("arbitration_path"),
-        "material_disagreement": disagreement,
-        "candidates": {"claude": config.get("claude_candidate_model"), "codex": config.get("codex_candidate_model")},
-        "judge_model": config.get("codex_judge_model"),
-        "minutes": minutes,
-        "launches": manifest.get("provider_launches"),
-        "retries": manifest.get("provider_retries"),
-    }
-
-
-def delarbitrate_summary(state):
-    runs = [delarbitrate_run(p) for p in sorted(state.iterdir()) if p.is_dir()] if state.is_dir() else []
-    statuses = Counter(run["status"] for run in runs)
-    disagreement = Counter("unknown" if run["material_disagreement"] is None
-                           else str(run["material_disagreement"]).lower() for run in runs)
-    return {
-        "state": str(state),
-        "counts": {"runs": len(runs), "complete": statuses["complete"], "needs_human": statuses["needs_human"],
-                   "blocked": statuses["blocked"],
-                   "incomplete": len(runs) - statuses["complete"] - statuses["needs_human"] - statuses["blocked"]},
-        "selected": dict(sorted(Counter(run["selected"] for run in runs if run["selected"]).items())),
-        "material_disagreement": {key: disagreement[key] for key in ("true", "false", "unknown")},
-        "runs": runs,
-    }
-
-
 def fmt_minutes(value):
     return "-" if value is None else f"{value:.1f}"
 
@@ -276,18 +233,6 @@ def format_text(summary):
         lines.append(f"  {g['harness']:<12} {str(g['model']):<24} {g['runs']:>4} {g['failed']:>6} | "
                      f"{fmt_minutes(m['attempt'])}/{fmt_minutes(m['review'])}/{fmt_minutes(m['revision'])} | {cost:>7} | "
                      f"{g['verdicts']:>3} {g['selected']:>3} {g['disputed_right']}/{g['disputed_wrong']} {g['truth_wins']}")
-    lines.append("")
-    d = summary["delarbitrate"]
-    c = d["counts"]
-    lines.append(f"Delarbitrate runs: {c['runs']} ({c['complete']} complete, {c['needs_human']} needs_human, "
-                 f"{c['blocked']} blocked, {c['incomplete']} incomplete) in {d['state']}")
-    lines.append("  judge selected: " + (", ".join(f"{k} {v}" for k, v in d["selected"].items()) or "-"))
-    md = d["material_disagreement"]
-    lines.append(f"  material disagreement: true {md['true']}, false {md['false']}, unknown {md['unknown']}")
-    for run in d["runs"]:
-        lines.append(f"  {run['run_id']}  {run['status']:<12} selected={run['selected'] or '-':<7} "
-                     f"claude={run['candidates']['claude']} codex={run['candidates']['codex']} "
-                     f"{fmt_minutes(run['minutes'])}m launches={run['launches']} retries={run['retries']}")
     return "\n".join(lines) + "\n"
 
 
@@ -296,22 +241,18 @@ def parse_args():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--thabto-state", type=Path, default=None,
                         help="THABTO run directory (default: $XDG_STATE_HOME/thabto).")
-    parser.add_argument("--delarbitrate-state", type=Path, default=None,
-                        help="Delarbitrate runs directory (default: $XDG_STATE_HOME/delarbitrate/runs).")
     parser.add_argument("--json", action="store_true", help="Emit the summary as JSON.")
     args = parser.parse_args()
     # A missing default is a fresh machine; a missing explicit path is a typo worth stopping on.
-    for name, default in (("thabto_state", state_home / "thabto"), ("delarbitrate_state", state_home / "delarbitrate/runs")):
-        given = getattr(args, name)
-        if given is not None and not given.is_dir():
-            parser.error(f"{given} is not a directory; pass an existing run directory or omit the flag.")
-        setattr(args, name, (given or default).resolve())
+    if args.thabto_state is not None and not args.thabto_state.is_dir():
+        parser.error(f"{args.thabto_state} is not a directory; pass an existing run directory or omit the flag.")
+    args.thabto_state = (args.thabto_state or state_home / "thabto").resolve()
     return args
 
 
 def main():
     args = parse_args()
-    summary = {"thabto": thabto_summary(args.thabto_state), "delarbitrate": delarbitrate_summary(args.delarbitrate_state)}
+    summary = {"thabto": thabto_summary(args.thabto_state)}
     sys.stdout.write(json.dumps(summary, indent=2) + "\n" if args.json else format_text(summary))
     return 0
 

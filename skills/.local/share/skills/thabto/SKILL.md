@@ -11,7 +11,7 @@ Use for explicit requests such as "use thabto to investigate X", "use thabto to 
 
 This first version is read-only. If asked to "use thabto to implement X", explain that isolated implementation worktrees are not available yet. Ask whether to investigate or design the change with THABTO. Do not silently substitute a design for implementation.
 
-Read `THABTO_CHILD` and `DELARBITRATE_CHILD` before running anything. If either equals `1`, refuse recursion. An explicit THABTO request authorizes both providers to receive the relevant task and context. Preserve the user's existing authority boundaries.
+Read `THABTO_CHILD` before running anything. If it equals `1`, refuse recursion. An explicit THABTO request authorizes both providers to receive the relevant task and context. Preserve the user's existing authority boundaries.
 
 ## Prepare
 
@@ -80,7 +80,7 @@ Runs live under `$XDG_STATE_HOME/thabto/<run-id>/`, defaulting to `~/.local/stat
 
 ## Stats
 
-`python3 "<skill-directory>/scripts/thabto_stats.py"` summarizes every retained THABTO run and every Delarbitrate run under `$XDG_STATE_HOME`: status, synthesis presence, resolved models, per-stage minutes, Claude cost, and the Delarbitrate judge's selections. It only reads. Add `--json` for machine-readable output, or `--thabto-state` / `--delarbitrate-state` to point at other directories. Fields a run never recorded print as `-` or `null`; they are not errors.
+`python3 "<skill-directory>/scripts/thabto_stats.py"` summarizes every retained THABTO run under `$XDG_STATE_HOME`: status, synthesis presence, resolved models, per-stage minutes, Claude cost, and verdict-derived scores per participant. It only reads. Add `--json` for machine-readable output, or `--thabto-state` to point at another directory. Fields a run never recorded print as `-` or `null`; they are not errors.
 
 ## Installation and discovery
 

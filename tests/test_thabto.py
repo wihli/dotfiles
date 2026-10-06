@@ -88,7 +88,6 @@ class ThabtoTests(unittest.TestCase):
         self.env = dict(os.environ, XDG_STATE_HOME=str(self.root / "state"),
                         CLAUDE_CODE_OAUTH_TOKEN="synthetic-test-token", MARKER=str(self.root / "marker"))
         self.env.pop("THABTO_CHILD", None)
-        self.env.pop("DELARBITRATE_CHILD", None)
         # Fakes finish in well under a second; the stage timeout only needs to stay clear of
         # interpreter start-up on a loaded machine.
         self.command = [sys.executable, str(DRIVER), "--task-file", str(self.task),

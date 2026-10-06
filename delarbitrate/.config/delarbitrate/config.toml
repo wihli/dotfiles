@@ -1,9 +1,0 @@
-codex_candidate_model = "gpt-5.6-terra"
-codex_candidate_effort = "max"
-claude_candidate_model = "claude-sonnet-5"
-claude_candidate_effort = "high"
-
-codex_judge_model = "gpt-5.6-sol"
-codex_judge_effort = "max"
-claude_tiebreak_model = "opus"
-claude_tiebreak_effort = "max"

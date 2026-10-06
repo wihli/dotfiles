@@ -36,9 +36,7 @@ class ThabtoStatsTests(unittest.TestCase):
         self.addCleanup(self.temp.cleanup)
         root = Path(self.temp.name)
         self.thabto = root / "thabto"
-        self.delarbitrate = root / "delarbitrate/runs"
         self.build_thabto_runs()
-        self.build_delarbitrate_runs()
 
     def build_thabto_runs(self):
         # Complete run: alias model, Claude JSON carries the resolved model, cost, duration.
@@ -105,32 +103,8 @@ class ThabtoStatsTests(unittest.TestCase):
                  "disposition": "unresolved", "basis": "unverified"}],
             "ground_truth": {"outcome": "claude", "note": "fix merged", "labeled_at": "2026-10-02T00:00:00Z"}}))
 
-    def build_delarbitrate_runs(self):
-        config = json.dumps({"codex_candidate_model": "gpt-5.6-terra", "claude_candidate_model": "claude-sonnet-5",
-                             "codex_judge_model": "gpt-5.6-sol", "claude_tiebreak_model": "opus"})
-        run = self.delarbitrate / "d1-complete"
-        write(run / "effective-config.json", config)
-        write(run / "manifest.json", json.dumps({
-            "status": "complete", "selected_candidate_backbone": "codex",
-            "arbitration_path": ["codex_and_claude_candidates", "two_swapped_codex_judges"],
-            "started_at_unix_ms": 1_000_000, "finished_at_unix_ms": 1_000_000 + 180_000,
-            "provider_launches": 5, "provider_retries": 1}))
-        write(run / "normalized-judgments.json", json.dumps([
-            {"selected_backbone": "codex", "material_disagreement": False, "resolution": "resolved"},
-            {"selected_backbone": "codex", "material_disagreement": True, "resolution": "resolved"}]))
-        run = self.delarbitrate / "d2-needs-human"
-        write(run / "effective-config.json", config)
-        write(run / "manifest.json", json.dumps({
-            "status": "needs_human", "selected_candidate_backbone": None, "arbitration_path": [],
-            "started_at_unix_ms": 2_000_000, "finished_at_unix_ms": 2_000_000 + 60_000,
-            "provider_launches": 2, "provider_retries": 0}))
-        run = self.delarbitrate / "d3-aborted"
-        write(run / "effective-config.json", config)
-        write(run / "task.md", "task")
-
     def run_stats(self, *extra):
-        command = [sys.executable, str(STATS), "--thabto-state", str(self.thabto),
-                   "--delarbitrate-state", str(self.delarbitrate), *extra]
+        command = [sys.executable, str(STATS), "--thabto-state", str(self.thabto), *extra]
         return subprocess.run(command, text=True, capture_output=True, timeout=30)
 
     def summary(self):
@@ -210,29 +184,11 @@ class ThabtoStatsTests(unittest.TestCase):
         self.assertEqual(groups[("claude-code", "opus")]["failed"], 1)
         self.assertIn(("pi", "gpt-6-sol"), groups)
 
-    def test_delarbitrate_runs_and_judge_selection(self):
-        summary = self.summary()["delarbitrate"]
-        runs = {run["run_id"]: run for run in summary["runs"]}
-        complete = runs["d1-complete"]
-        self.assertEqual(complete["status"], "complete")
-        self.assertEqual(complete["selected"], "codex")
-        self.assertEqual(complete["candidates"], {"claude": "claude-sonnet-5", "codex": "gpt-5.6-terra"})
-        self.assertEqual(complete["judge_model"], "gpt-5.6-sol")
-        self.assertTrue(complete["material_disagreement"])
-        self.assertAlmostEqual(complete["minutes"], 3.0)
-        self.assertEqual((complete["launches"], complete["retries"]), (5, 1))
-        self.assertEqual(runs["d2-needs-human"]["status"], "needs_human")
-        self.assertIsNone(runs["d2-needs-human"]["material_disagreement"])
-        self.assertEqual(runs["d3-aborted"]["status"], "incomplete")
-        self.assertEqual(summary["counts"], {"runs": 3, "complete": 1, "needs_human": 1, "blocked": 0, "incomplete": 1})
-        self.assertEqual(summary["selected"], {"codex": 1})
-        self.assertEqual(summary["material_disagreement"], {"true": 1, "false": 0, "unknown": 2})
-
     def test_text_output_lists_runs_and_aggregates(self):
         result = self.run_stats()
         self.assertEqual(result.returncode, 0, result.stderr)
-        for text in ("THABTO runs", "20260910T171439Z-aaaaaaaaaaaa", "claude-sonnet-5", "Delarbitrate runs",
-                     "d1-complete", "codex 1", "unreadable", "20260912T000000Z-dddddddddddd",
+        for text in ("THABTO runs", "20260910T171439Z-aaaaaaaaaaaa", "claude-sonnet-5",
+                     "unreadable", "20260912T000000Z-dddddddddddd",
                      "verdicts: 1 runs", "ground truth labeled 1"):
             self.assertIn(text, result.stdout)
 
@@ -243,7 +199,6 @@ class ThabtoStatsTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         summary = json.loads(result.stdout)
         self.assertEqual(summary["thabto"]["counts"]["runs"], 0)
-        self.assertEqual(summary["delarbitrate"]["counts"]["runs"], 0)
         result = self.run_stats("--thabto-state", str(Path(self.temp.name) / "absent"))
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("absent", result.stderr)

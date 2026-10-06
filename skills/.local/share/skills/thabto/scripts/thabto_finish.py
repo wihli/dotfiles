@@ -11,7 +11,7 @@ import sys
 
 VERDICT_SCHEMA = 1
 POSITIONS = ("asserts", "disputes", "silent")
-# Claim dispositions share Delarbitrate's vocabulary so both tools' verdicts aggregate together.
+# The coordinator's evidence-based ruling on each claim.
 DISPOSITIONS = ("supported", "rejected", "unresolved")
 BASES = ("evidence", "preference", "unverified")
 LEGACY_PARTICIPANTS = ("claude", "codex")
