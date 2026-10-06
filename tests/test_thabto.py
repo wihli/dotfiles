@@ -16,6 +16,7 @@ FAKE = r'''#!/usr/bin/env python3
 import json, os, pathlib, subprocess, sys, time
 args = sys.argv[1:]
 provider = "claude" if "--print" in args else "codex"
+model = args[args.index("--model") + 1]
 prompt = sys.stdin.read()
 stage = prompt.split("# Stage: ", 1)[1].splitlines()[0]
 print(json.dumps({"args": args, "cwd": os.getcwd(),
@@ -30,7 +31,10 @@ if "STALL" in prompt:
 if "FAIL" in prompt and provider == "claude":
     print("synthetic provider failure", file=sys.stderr)
     sys.exit(7)
-answer = provider + " " + stage + " answer"
+if "REVIEW_FAIL" in prompt and stage == "review" and model == "test-codex-b":
+    print("synthetic review failure", file=sys.stderr)
+    sys.exit(8)
+answer = f"{provider}:{model} {stage} answer"
 if provider == "claude":
     if "MALFORMED" in prompt:
         print("not json")
@@ -58,9 +62,11 @@ class ThabtoTests(unittest.TestCase):
                         CLAUDE_CODE_OAUTH_TOKEN="synthetic-test-token", MARKER=str(self.root / "marker"))
         self.env.pop("THABTO_CHILD", None)
         self.env.pop("DELARBITRATE_CHILD", None)
+        # Fakes finish in well under a second; the stage timeout only needs to stay clear of
+        # interpreter start-up on a loaded machine.
         self.command = [sys.executable, str(DRIVER), "--task-file", str(self.task),
                         "--workspace", str(self.workspace), "--claude-model", "test-claude",
-                        "--codex-model", "test-codex", "--timeout", "5"]
+                        "--codex-model", "test-codex", "--timeout", "30"]
         for provider in ("claude", "codex"):
             executable = self.root / (provider + " fake")
             executable.write_text(FAKE)
@@ -71,24 +77,36 @@ class ThabtoTests(unittest.TestCase):
         if task:
             self.task.write_text(task)
         return subprocess.run(self.command + list(extra), env=self.env,
-                              text=True, capture_output=True, timeout=10)
+                              text=True, capture_output=True, timeout=90)
 
     def run_path(self):
         return next((self.root / "state/thabto").iterdir())
+
+    def run_metadata(self):
+        return json.loads((self.run_path() / "run.json").read_text())
+
+    @staticmethod
+    def answer(provider, stage, model=None):
+        return f"{provider}:{model or 'test-' + provider} {stage} answer"
 
     def test_complete_exchange_routes_reviews_and_keeps_raw_outputs(self):
         result = self.run_driver()
         self.assertEqual(result.returncode, 0, result.stderr)
         run = self.run_path()
         self.assertEqual((run / "task.md").read_text(), self.task.read_text())
-        metadata = json.loads((run / "run.json").read_text())
+        metadata = self.run_metadata()
         self.assertEqual(metadata["status"], "awaiting_synthesis")
-        self.assertEqual(metadata["schema"], 2)
+        self.assertEqual(metadata["schema"], 3)
         self.assertRegex(metadata["started_at"], r"^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\dZ$")
         self.assertGreaterEqual(metadata["finished_at"], metadata["started_at"])
         self.assertEqual(metadata["participants"], [
             {"name": "claude", "harness": "claude-code", "model": "test-claude", "effort": "high"},
             {"name": "codex", "harness": "codex", "model": "test-codex", "effort": "high"}])
+        self.assertEqual(sorted(metadata["ring"]), ["claude", "codex"])
+        self.assertIsInstance(metadata["seed"], int)
+        self.assertEqual(metadata["review_targets"], {"claude": "codex", "codex": "claude"})
+        self.assertEqual(metadata["final_answers"], {"claude": "revision/claude/answer.md",
+                                                     "codex": "revision/codex/answer.md"})
         for stage in ("attempt", "review", "revision"):
             for provider in ("claude", "codex"):
                 record = metadata["stages"][stage][provider]
@@ -99,15 +117,15 @@ class ThabtoTests(unittest.TestCase):
             attempt = (run / f"attempt/{provider}/prompt.md").read_text()
             self.assertNotIn("attempt answer", attempt)
             review = (run / f"review/{provider}/prompt.md").read_text()
-            self.assertIn(f"{peer} attempt answer", review)
-            self.assertNotIn(f"{provider} attempt answer", review)
+            self.assertIn(self.answer(peer, "attempt"), review)
+            self.assertNotIn(self.answer(provider, "attempt"), review)
             revision = (run / f"revision/{provider}/prompt.md").read_text()
-            self.assertIn(f"{provider} attempt answer", revision)
-            self.assertIn(f"{peer} review answer", revision)
-            self.assertNotIn(f"{provider} review answer", revision)
+            self.assertIn(self.answer(provider, "attempt"), revision)
+            self.assertIn(self.answer(peer, "review"), revision)
+            self.assertNotIn(self.answer(provider, "review"), revision)
             for stage in ("attempt", "review", "revision"):
                 folder = run / stage / provider
-                self.assertEqual((folder / "answer.md").read_text().strip(), f"{provider} {stage} answer")
+                self.assertEqual((folder / "answer.md").read_text().strip(), self.answer(provider, stage))
                 self.assertTrue((folder / "stdout.log").read_text())
                 receipt = json.loads((folder / "stderr.log").read_text())
                 self.assertEqual(receipt["child"], "1")
@@ -139,15 +157,108 @@ class ThabtoTests(unittest.TestCase):
         result = self.run_driver("FAIL")
         self.assertNotEqual(result.returncode, 0)
         run = self.run_path()
+        metadata = self.run_metadata()
+        claude = metadata["stages"]["attempt"]["claude"]
+        self.assertEqual((claude["outcome"], claude["exit_code"]), ("failed", 7), result.stderr)
+        self.assertEqual(metadata["stages"]["attempt"]["codex"]["outcome"], "answered")
         self.assertFalse((run / "review").exists())
         self.assertIn("synthetic provider failure", (run / "attempt/claude/stderr.log").read_text())
-        metadata = json.loads((run / "run.json").read_text())
         self.assertEqual(metadata["status"], "failed")
+        self.assertIn("needs two", metadata["error"])
         self.assertIn(str(run), result.stderr)
-        claude = metadata["stages"]["attempt"]["claude"]
-        self.assertEqual((claude["outcome"], claude["exit_code"]), ("failed", 7))
-        self.assertIn(metadata["stages"]["attempt"]["codex"]["outcome"], ("answered", "cancelled"))
+        self.assertEqual(metadata["participants"][0]["failed_at"], "attempt")
         self.assertNotIn("review", metadata["stages"])
+
+    def three_way(self, task=None, extra=()):
+        self.task.write_text(task or self.task.read_text())
+        command = [sys.executable, str(DRIVER), "--task-file", str(self.task), "--workspace", str(self.workspace),
+                   "--timeout", "30", "--seed", "7",
+                   "--participant", "claude-code:test-claude", "--participant", "codex:test-codex:high",
+                   "--participant", "codex:test-codex-b:medium",
+                   "--claude-executable", str(self.root / "claude fake"),
+                   "--codex-executable", str(self.root / "codex fake"), *extra]
+        return subprocess.run(command, env=self.env, text=True, capture_output=True, timeout=90)
+
+    def test_three_participants_form_a_seeded_ring(self):
+        result = self.three_way()
+        self.assertEqual(result.returncode, 0, result.stderr)
+        metadata = self.run_metadata()
+        names = [p["name"] for p in metadata["participants"]]
+        self.assertEqual(names, ["claude", "codex", "codex-2"])
+        self.assertEqual(metadata["participants"][2], {"name": "codex-2", "harness": "codex",
+                                                       "model": "test-codex-b", "effort": "medium"})
+        self.assertEqual(metadata["seed"], 7)
+        ring = metadata["ring"]
+        self.assertEqual(sorted(ring), sorted(names))
+        targets = metadata["review_targets"]
+        self.assertEqual(targets, {ring[i]: ring[(i + 1) % 3] for i in range(3)})
+        models = {"claude": "test-claude", "codex": "test-codex", "codex-2": "test-codex-b"}
+        run = self.run_path()
+        for reviewer, target in targets.items():
+            review = (run / f"review/{reviewer}/prompt.md").read_text()
+            self.assertIn(self.answer(target.split("-")[0], "attempt", models[target]), review)
+            for other in set(names) - {target}:
+                self.assertNotIn(self.answer(other.split("-")[0], "attempt", models[other]), review)
+            revision = (run / f"revision/{target}/prompt.md").read_text()
+            self.assertIn(self.answer(reviewer.split("-")[0], "review", models[reviewer]), revision)
+        self.assertEqual(set(metadata["final_answers"]), set(names))
+        self.assertTrue(all(path.startswith("revision/") for path in metadata["final_answers"].values()))
+        codex_b = json.loads((run / "attempt/codex-2/stderr.log").read_text())["args"]
+        self.assertIn("test-codex-b", codex_b)
+        self.assertIn('model_reasoning_effort="medium"', codex_b)
+        # Same seed, same ring.
+        self.assertEqual(self.three_way().returncode, 0)
+        rings = {json.loads((r / "run.json").read_text())["ring"][0] for r in (self.root / "state/thabto").iterdir()}
+        self.assertEqual(len(rings), 1)
+
+    def test_attempt_failure_drops_one_participant_and_the_run_continues(self):
+        result = self.three_way("FAIL")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("attempt: claude failed", result.stderr)
+        metadata = self.run_metadata()
+        self.assertEqual(metadata["status"], "awaiting_synthesis")
+        self.assertEqual(metadata["participants"][0]["failed_at"], "attempt")
+        self.assertEqual(metadata["stages"]["attempt"]["claude"]["outcome"], "failed")
+        self.assertEqual(set(metadata["review_targets"]), {"codex", "codex-2"})
+        self.assertEqual(metadata["review_targets"], {"codex": "codex-2", "codex-2": "codex"})
+        self.assertEqual(set(metadata["stages"]["review"]), {"codex", "codex-2"})
+        self.assertEqual(metadata["final_answers"], {"codex": "revision/codex/answer.md",
+                                                     "codex-2": "revision/codex-2/answer.md"})
+        prompt = (self.run_path() / "synthesis-prompt.md").read_text()
+        self.assertIn("Failed participants: claude (at attempt)", prompt)
+        self.assertNotIn("claude:", prompt.split("Failed participants")[0])
+
+    def test_review_failure_skips_the_orphaned_revision(self):
+        result = self.three_way("REVIEW_FAIL")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        metadata = self.run_metadata()
+        target = metadata["review_targets"]["codex-2"]
+        self.assertEqual(metadata["stages"]["review"]["codex-2"]["outcome"], "failed")
+        self.assertEqual(metadata["participants"][2]["failed_at"], "review")
+        self.assertEqual(metadata["stages"]["revision"][target], {"outcome": "skipped", "reason": "no review received"})
+        self.assertNotIn("codex-2", metadata["stages"]["revision"])
+        self.assertEqual(metadata["final_answers"][target], f"attempt/{target}/answer.md")
+        self.assertEqual(metadata["final_answers"]["codex-2"], "attempt/codex-2/answer.md")
+        prompt = (self.run_path() / "synthesis-prompt.md").read_text()
+        self.assertIn(f"- {target}: attempt/{target}/answer.md (no revision: no review received)", prompt)
+        self.assertIn("codex-2 (at review)", prompt)
+
+    def test_participant_spec_errors_are_explicit(self):
+        base = [sys.executable, str(DRIVER), "--task-file", str(self.task), "--workspace", str(self.workspace),
+                "--claude-executable", str(self.root / "claude fake"), "--codex-executable", str(self.root / "codex fake")]
+        cases = {
+            "pi": ["--participant", "pi:gpt-6-sol", "--participant", "codex:gpt-6-sol"],
+            "HARNESS:MODEL": ["--participant", "codex", "--participant", "codex:gpt-6-sol"],
+            "at least two": ["--participant", "codex:gpt-6-sol"],
+            "not both": ["--participant", "codex:gpt-6-sol", "--claude-model", "x"],
+            "both --claude-model and --codex-model": ["--codex-model", "x"],
+        }
+        for token, extra in cases.items():
+            with self.subTest(token=token):
+                result = subprocess.run(base + extra, env=self.env, text=True, capture_output=True, timeout=15)
+                self.assertNotEqual(result.returncode, 0)
+                self.assertIn(token, result.stderr)
+                self.assertFalse((self.root / "state/thabto").exists())
 
     def test_missing_or_invalid_final_answer_is_a_failure(self):
         for task in ("MALFORMED", "ERROR_RESULT", "EMPTY", "MISSING_FINAL"):
@@ -166,10 +277,8 @@ class ThabtoTests(unittest.TestCase):
         self.assertFalse((self.root / "marker").exists())
         logs = list(self.run_path().glob("attempt/*/stderr.log"))
         self.assertTrue(any(path.read_text() for path in logs))
-        outcomes = {record["outcome"] for record in
-                    json.loads((self.run_path() / "run.json").read_text())["stages"]["attempt"].values()}
-        self.assertIn("timeout", outcomes)
-        self.assertLessEqual(outcomes, {"timeout", "cancelled"})
+        outcomes = {record["outcome"] for record in self.run_metadata()["stages"]["attempt"].values()}
+        self.assertEqual(outcomes, {"timeout"})
 
     def test_sigterm_cancels_process_groups(self):
         self.task.write_text("STALL")
@@ -183,7 +292,7 @@ class ThabtoTests(unittest.TestCase):
             process.send_signal(signal.SIGTERM)
             process.communicate(timeout=3)
             self.assertNotEqual(process.returncode, 0)
-            self.assertEqual(json.loads((self.run_path() / "run.json").read_text())["status"], "cancelled")
+            self.assertEqual(self.run_metadata()["status"], "cancelled")
             time.sleep(1.3)
             self.assertFalse((self.root / "marker").exists())
         finally:

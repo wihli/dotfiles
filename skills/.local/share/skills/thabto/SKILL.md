@@ -33,15 +33,17 @@ python3 "<skill-directory>/scripts/thabto.py" \
   --codex-model "<codex-model>"
 ```
 
-Optional arguments: `--claude-effort`, `--codex-effort`, `--timeout` (seconds per invocation, default 600), `--claude-executable`, and `--codex-executable`. Executable overrides receive the same arguments as native CLIs; they are not a different test protocol.
+Optional arguments: `--claude-effort`, `--codex-effort`, `--timeout` (seconds per invocation, default 600), `--seed` (ring order; random and recorded by default), and `--<harness>-executable` overrides. Executable overrides receive the same arguments as native CLIs; they are not a different test protocol.
 
-Relay the driver's observed stage messages while it runs. It launches two attempts, two cross-reviews, and two revisions in fresh processes. It performs no retries. Ctrl-C or termination cancels the active process groups.
+For more than two participants, or a harness other than the default pair, replace the model flags with repeated `--participant HARNESS:MODEL[:EFFORT]` (for example `--participant claude-code:claude-opus-5-5 --participant codex:gpt-6-sol --participant codex:gpt-6-astra`). Known harnesses are listed in the driver's `--help`. Participants are named by harness (`claude`, `codex`, `codex-2`, …); those names appear in the run directory and in `run.json`. The two forms cannot be mixed.
 
-If a provider fails, report the exact failure and retained run path. Read its `error.txt` and relevant diagnostics before suggesting recovery. Do not claim that a partial exchange is a completed THABTO answer. Follow the harness's normal approval mechanism for a sandbox-blocked launch; do not switch credential mechanisms or bypass provider permissions. If interactive authentication is required, stop and explain the required provider login.
+Relay the driver's observed stage messages while it runs. Every participant attempts the task; then each reviews the next participant in a shuffled ring (`review_targets` in `run.json`); then each participant that received a review revises. With two participants the ring is the familiar mutual review. Fresh processes, no retries. Ctrl-C or termination cancels the active process groups.
+
+A participant that fails at any stage drops out of the later stages; the run continues if at least two attempts succeeded, and `run.json` records `failed_at` for the dropped participant. A participant whose reviewer failed keeps its attempt as its final answer. If a provider fails, report the exact failure and retained run path. Read its `error.txt` and relevant diagnostics before suggesting recovery. Do not claim that a partial exchange is a completed THABTO answer. Follow the harness's normal approval mechanism for a sandbox-blocked launch; do not switch credential mechanisms or bypass provider permissions. If interactive authentication is required, stop and explain the required provider login.
 
 ## Synthesize
 
-On success, the driver prints the exact run directory. Read its `synthesis-prompt.md`, original `task.md`, and both `revision/<provider>/answer.md` files. Read the original attempts and reviews where needed to resolve a claim.
+On success, the driver prints the exact run directory. Read its `synthesis-prompt.md`, which lists the original `task.md`, each participant's final answer (`revision/<name>/answer.md`, or the attempt when no review reached it), and any participant that failed. Read the original attempts and reviews where needed to resolve a claim.
 
 Write one answer to the user's question. Prefer supported claims; agreement alone proves nothing. State unresolved disagreement and verification limits.
 
