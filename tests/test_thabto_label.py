@@ -98,7 +98,9 @@ class ThabtoLabelTests(unittest.TestCase):
         for provider in ("claude", "codex"):
             prompt = (self.prompts / (provider + ".md")).read_text()
             for text in ("TASK: investigate the alert.", "SYNTHESIS: impact not proven.",
-                         "EVIDENCE: 0 config errors", "CLAUDE FINAL", "CODEX FINAL", "Error logs for 24 h."):
+                         "EVIDENCE: 0 config errors", "CLAUDE FINAL", "CODEX FINAL", "Error logs for 24 h.",
+                         # Partly settled runs are labeled on the claims that have evidence.
+                         "Rule on the claims that"):
                 self.assertIn(text, prompt)
         self.assertIn("plan", json.loads((self.prompts / "claude.args").read_text()))
         self.assertIn("read-only", json.loads((self.prompts / "codex.args").read_text()))
@@ -136,6 +138,15 @@ class ThabtoLabelTests(unittest.TestCase):
         self.assertIn("existing label claude", result.stdout)
         self.assertEqual(self.verdict()["ground_truth"]["outcome"], "claude")
         self.assertNotIn("answer", self.verdict()["ground_truth"])
+
+    def test_agreement_replaces_an_unknown_label(self):
+        # "unknown" records that nothing settled the run yet, not a position on who was right.
+        self.write_verdict({"outcome": "unknown", "note": "No outcome yet.", "labeled_at": "2026-10-06T00:00:00Z"})
+        result = self.label(ruling(), ruling())
+        self.assertEqual(result.returncode, 0, result.stderr)
+        truth = self.verdict()["ground_truth"]
+        self.assertEqual((truth["outcome"], truth["answer"]), ("codex", "correct"))
+        self.assertTrue(truth["note"].startswith("No outcome yet."))
 
     def test_failed_or_malformed_judge_labels_nothing_and_exits_nonzero(self):
         for claude in ("FAIL", '{"settled": true, "outcome": "gpt", "answer": "correct", "reason": "x"}'):

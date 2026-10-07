@@ -39,8 +39,15 @@ reviews, and the coordinator's synthesis and rulings are opinions under test, ne
 evidence. Judge each position against what the evidence shows happened. A participant
 who only doubted a claim ("not proven") was not right about it if the claim proved true;
 the participant who asserted it was. Compare the final answers, which may have changed
-position after review. If the evidence does not settle the question, say so: an
-unsettled run stays open for a later pass, and a wrong label corrupts the record.
+position after review. The user adopting a position counts even when the record does not
+say what prompted it.
+
+A run is settled once independent evidence decides at least one claim that divided the
+participants, or the main finding of the coordinator's answer. Rule on the claims that
+have evidence and name the claims still open in your reason; open claims alone do not
+make the run unsettled. Return settled false only when no dividing claim and no main
+finding has evidence: an unsettled run stays open for a later pass, and a wrong label
+corrupts the record.
 
 End your reply with one fenced JSON block, either
 {"settled": true, "outcome": "<name|both|neither>", "answer": "<correct|partly|wrong>", "reason": "<one or two sentences citing the evidence>"}
@@ -113,7 +120,8 @@ def judge_run(run, judges, args, cancelled):
         decision, line = "unsettled", "unsettled (both judges)"
     elif (first["settled"] and second["settled"] and first["outcome"] == second["outcome"]
           and first["answer"] == second["answer"]):
-        if existing and existing.get("outcome") != first["outcome"]:
+        # An "unknown" label records that nothing had settled the run, so agreement may replace it.
+        if existing and existing.get("outcome") not in (first["outcome"], "unknown"):
             decision = "disagree"
             line = f"DISAGREE judges agree on outcome={first['outcome']} but existing label {existing.get('outcome')} stands"
         else:

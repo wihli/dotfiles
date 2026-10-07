@@ -34,18 +34,18 @@ If nothing can settle a run yet, skip it; it stays pending for a later pass.
 python3 "<skill-directory>/scripts/thabto_label.py" --run "<run>" [--run "<run>" ...]
 ```
 
-Defaults: `claude-opus-5-5` and `gpt-6-sol` at `high` effort, 600 s per judge. Both judges run read-only with no network and no MCP, the same isolation as THABTO participants. Each judge receives the task, every participant's final answer, the synthesis, the claim rulings, and `label-evidence.md`, and returns a ruling: settled or unsettled, an outcome, and an answer grade.
+Defaults: `claude-opus-5-5` and `gpt-6-sol` at `high` effort, 600 s per judge. A run counts as settled once evidence decides at least one dividing claim or the answer's main finding; the judges rule on the claims that have evidence and name the ones still open. Both judges run read-only with no network and no MCP, the same isolation as THABTO participants. Each judge receives the task, every participant's final answer, the synthesis, the claim rulings, and `label-evidence.md`, and returns a ruling: settled or unsettled, an outcome, and an answer grade.
 
 Per run, the script prints one decision and saves the judges' raw output under `<run>/labeling/<stamp>/`:
 
 | Decision | Meaning | Action |
 |---|---|---|
 | `labeled` | Both judges settled the run with the same outcome and answer grade. The script recorded the label with both judges' reasons as the note | None |
-| `unsettled` | Neither judge found the evidence sufficient | Leave pending; gather more evidence later |
+| `unsettled` | Neither judge found evidence deciding any dividing claim or the answer's main finding | Leave pending; gather more evidence later |
 | `DISAGREE` | The judges differ, one settled and one did not, or both contradict an existing label | Surface to the user |
 | `FAILED` | A judge failed or returned a malformed ruling | Read `labeling/<stamp>/judge/<name>/error.txt` and stderr; rerun that run |
 
-An existing label is never overturned. On an older run that already has an outcome label, agreement on the same outcome adds the answer grade and keeps the earlier note.
+An existing label is never overturned. On an older run that already has an outcome label, agreement on the same outcome adds the answer grade and keeps the earlier note. An `unknown` label records only that nothing had settled the run, so agreement replaces it.
 
 ## 4. Report to the user
 
