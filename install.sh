@@ -107,7 +107,7 @@ detect_unmanaged_stow_files() {
             echo "  - $target_file"
             echo "    source: $source_file"
         fi
-    done < <(find "$package_root" -type f -print0)
+    done < <(find "$package_root" \( -name __pycache__ -o -name .pytest_cache \) -prune -o -type f -print0)
 
     if [ "$found" -eq 1 ]; then
         echo "Fix: move the content back into $package_root, remove the unmanaged home-path copy, then rerun ./install.sh."

@@ -8,6 +8,17 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 
 
 class InstallScriptTests(unittest.TestCase):
+    def test_unmanaged_file_check_skips_what_stow_ignores(self) -> None:
+        # Running a skill's scripts writes __pycache__ next to them. Stow ignores it, so the
+        # pre-stow check must too, or one cache aborts the install after the skill
+        # manifests were already removed.
+        install_script = (REPO_ROOT / "install.sh").read_text()
+
+        self.assertIn(
+            "find \"$package_root\" \\( -name __pycache__ -o -name .pytest_cache \\) -prune -o -type f -print0",
+            install_script,
+        )
+
     def test_merged_global_agents_file_is_linked_for_pi(self) -> None:
         install_script = (REPO_ROOT / "install.sh").read_text()
 
