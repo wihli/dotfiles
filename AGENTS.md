@@ -34,6 +34,7 @@ Keep shared behavior in the shared XDG-style locations above. Keep tool-specific
 - For shared skills and subagents, edit the repo source under `skills/.local/share/...` or `subagents/.local/share/...`, never the installed targets under `~/.local/share/`, `~/.claude/`, `~/.agents/`, or `~/.codex/`
 - Do not edit generated install outputs directly: `~/.config/AGENTS.md`, `~/.config/AGENTS.private.md`, `~/.claude/CLAUDE.md`, `~/.claude/settings.json`, `~/.claude/skills/`, `~/.claude/agents/`, `~/.agents/skills/`, `~/.codex/AGENTS.md`, `~/.codex/skills/`, `~/.pi/agent/AGENTS.md`
 - After changing shared agent assets, rerun `cd $SRC_DIR/wihli-dotfiles && ./install.sh`
+- When you remove a skill or subagent, add an entry to `CHANGELOG.md` that says what it did and why it was removed. Check `CHANGELOG.md` before you re-create an asset with the same name or purpose
 - If `stow` reports a conflict in a managed target, treat it as an unmanaged file in `$HOME`; move the source back into the repo package instead of editing the home-path copy
 - If you change install behavior, update `README.md` and any repo-local agent docs in the same change
 
