@@ -66,6 +66,7 @@ Then record the outcome so runs can be compared later. Save the exact answer to 
 
 - `positions`: one entry per participant `name` in the run's `run.json`; each is `asserts`, `disputes`, or `silent`.
 - `disposition`: your ruling on the claim after checking evidence: `supported`, `rejected`, or `unresolved`. `basis`: `evidence`, `preference`, or `unverified`.
+- Agreement is not evidence: a claim every participant asserts that you did not check against a source is `unresolved` with `basis: unverified`. Use agreement only to decide which claims to check first.
 - `material_disagreement`: `true` exactly when some claim has both an `asserts` and a `disputes` position.
 - `selected_backbone`: the participant whose revision your answer follows most closely, `merged`, or `none`.
 - `ground_truth`: leave `null`; label it later when reality settles the question.
