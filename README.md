@@ -14,7 +14,7 @@ cd ~/dotfiles
 
 | Package | Contents |
 |---------|----------|
-| `agents` | Shared installed agent instructions (`~/.config/AGENTS.md`) |
+| `agents` | Shared instructions for Claude Code, Codex, and Pi |
 | `bash` | .bashrc |
 | `bin` | Shared helper commands in `~/.local/bin` |
 | `claude` | Claude-specific runtime settings |
@@ -32,7 +32,7 @@ cd ~/dotfiles
 
 The intended split is:
 
-- Shared instructions: `agents/.config/AGENTS.md`
+- Shared instructions: `agents/.config/AGENTS.md`, installed at `~/.config/AGENTS.md`
 - Shared helper commands: `bin/.local/bin/`
 - Claude-specific config: `claude/.claude/settings.json`
 - Codex-specific hooks: `codex/.codex/hooks.json`
@@ -45,15 +45,16 @@ Treat repo paths as the source of truth. Installed home paths such as
 `~/.config/AGENTS.md`, `~/.local/share/skills/`, `~/.local/share/subagents/`,
 `~/.claude/skills/`, `~/.claude/agents/`, `~/.agents/skills/`, and
 `~/.codex/skills/` are generated targets managed by `install.sh` and Stow.
+Pi reads the generated `~/.pi/agent/AGENTS.md` link.
 Private Pi extensions under `~/.pi/agent/extensions/` are managed the same way.
 Do not edit these installed paths.
 
 `install.sh` stows the public repo first, overlays the private repo second,
 merges private Claude settings and Codex hook fragments into their public base
 files, stows private Pi extensions, then links shared agent assets into the paths
-Claude and Codex expect.
-OpenCode discovers those same shared skills through its Agent Skills
-compatibility paths.
+Claude, Codex, and Pi expect.
+Pi and OpenCode discover those same shared skills through the shared Agent Skills
+path at `~/.agents/skills/`.
 
 Skill directories and supporting files keep the Stow-managed overlay layout.
 After both overlays are installed, `install.sh` replaces only dotfiles-owned

@@ -1,11 +1,11 @@
 ---
 name: create-portable-skill
-description: Create or update portable skills for Claude Code, Codex, and OpenCode. Use for new shared skills, ports, installer changes, or cross-harness audits.
+description: Create or update portable skills for Claude Code, Codex, OpenCode, and Pi. Use for new shared skills, ports, installer changes, or cross-harness audits.
 ---
 
 # Create Portable Skill
 
-Build one source-controlled skill whose core workflow works unchanged in Claude Code, Codex, and OpenCode. Keep harness-specific metadata or adapters optional so another harness can ignore them safely.
+Build one source-controlled skill whose core workflow works unchanged in Claude Code, Codex, OpenCode, and Pi. Keep harness-specific metadata or adapters optional so another harness can ignore them safely.
 
 ## Establish the contract
 
@@ -36,7 +36,10 @@ For this dotfiles repository, one canonical source under `~/.local/share/skills`
 | --- | --- | --- |
 | Claude Code | `~/.claude/skills/<skill-name>` | Resolve the link, then list or invoke the skill. |
 | Codex | `~/.agents/skills/<skill-name>` | Resolve the per-skill link, then list or invoke the skill. |
+| Pi | `~/.agents/skills/<skill-name>` | Resolve the link, then start Pi or run `/reload` and invoke `/skill:<skill-name>`. |
 | OpenCode | OpenCode discovers `~/.agents/skills` and `~/.claude/skills` as compatibility paths. | Recheck the current official OpenCode skill documentation, then list or invoke the skill when the executable is available. |
+
+Pi discovers `~/.agents/skills` natively, so it needs no Pi-specific skill copy.
 
 Do not add another discovery root merely for symmetry. Change installer wiring only when current harness documentation or an installed runtime proves the existing path insufficient; then update installer tests and repository documentation together.
 

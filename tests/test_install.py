@@ -8,6 +8,14 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 
 
 class InstallScriptTests(unittest.TestCase):
+    def test_merged_global_agents_file_is_linked_for_pi(self) -> None:
+        install_script = (REPO_ROOT / "install.sh").read_text()
+
+        self.assertIn(
+            "ensure_link ~/.config/AGENTS.md ~/.pi/agent/AGENTS.md",
+            install_script,
+        )
+
     def test_private_pi_extensions_are_stowed(self) -> None:
         install_script = (REPO_ROOT / "install.sh").read_text()
 

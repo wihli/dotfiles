@@ -14,13 +14,14 @@ SKILL_ROOT = (
 
 
 class CreatePortableSkillTests(unittest.TestCase):
-    def test_skill_defines_a_three_harness_portability_contract(self) -> None:
+    def test_skill_defines_a_four_harness_portability_contract(self) -> None:
         skill = (SKILL_ROOT / "SKILL.md").read_text()
 
         self.assertIn("name: create-portable-skill", skill)
         self.assertIn("Claude Code", skill)
         self.assertIn("Codex", skill)
         self.assertIn("OpenCode", skill)
+        self.assertIn("| Pi |", skill)
         self.assertIn("~/.local/share/skills", skill)
         self.assertIn("~/.claude/skills", skill)
         self.assertIn("~/.agents/skills", skill)
@@ -33,12 +34,12 @@ class CreatePortableSkillTests(unittest.TestCase):
 
         self.assertIn('display_name: "Create Portable Skill"', interface)
         self.assertIn(
-            'short_description: "Create skills for Claude, Codex, and OpenCode"',
+            'short_description: "Create skills for Claude, Codex, OpenCode, and Pi"',
             interface,
         )
         self.assertIn("$create-portable-skill", interface)
 
-    def test_installer_exposes_the_shared_source_to_all_three_harnesses(self) -> None:
+    def test_installer_exposes_the_shared_source_to_all_four_harnesses(self) -> None:
         install_script = (REPO_ROOT / "install.sh").read_text()
 
         self.assertIn(
@@ -57,6 +58,7 @@ class CreatePortableSkillTests(unittest.TestCase):
         self.assertIn(
             "OpenCode discovers `~/.agents/skills` and `~/.claude/skills`", skill
         )
+        self.assertIn("Pi discovers `~/.agents/skills` natively", skill)
 
 
 if __name__ == "__main__":

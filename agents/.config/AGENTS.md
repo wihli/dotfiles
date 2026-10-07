@@ -8,7 +8,7 @@ Eric Ihli owns this. Work style: concise, with enough context and reasoning for 
 - Precedence: explicit chat instructions > repo-local agent docs > this file.
 - Route new lessons to the narrowest home: procedures/tool detail → the owning skill; repo-specific rules → that repo's agent docs; observations → memory; here only if it applies to every session. Write rules timeless: principle + one-line why, not the incident story.
 - Eric's "we don't want to X" feedback is situational unless he says otherwise: capture the trigger and the test that separates the bad case from the fine ones, never a blanket ban. An over-generalized rule misfires exactly on the cases where X is correct.
-- Installed copies (`~/.config/AGENTS.md`, `~/.claude/CLAUDE.md`, `~/.codex/AGENTS.md`, `~/.local/share/skills/`, `~/.claude/skills/`, subagent dirs) are generated — never edit them. "Make a note" / "remember to" => edit the source, then `cd $SRC_DIR/wihli-dotfiles && ./install.sh`:
+- Installed copies (`~/.config/AGENTS.md`, `~/.claude/CLAUDE.md`, `~/.codex/AGENTS.md`, `~/.pi/agent/AGENTS.md`, `~/.local/share/skills/`, `~/.claude/skills/`, subagent dirs) are generated — never edit them. "Make a note" / "remember to" => edit the source, then `cd $SRC_DIR/wihli-dotfiles && ./install.sh`:
   - Public: `$SRC_DIR/wihli-dotfiles/agents/.config/AGENTS.md` (this file)
   - Private overlay: `$SRC_DIR/wihli-dotfiles-private/agents/.config/AGENTS.private.md` (concatenated at install)
   - Skills / subagents: `skills/.local/share/skills/`, `subagents/.local/share/subagents/` in either repo
