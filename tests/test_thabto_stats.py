@@ -100,8 +100,14 @@ class ThabtoStatsTests(unittest.TestCase):
                 {"id": "c3", "text": "c", "positions": {"claude": "silent", "codex": "asserts"},
                  "disposition": "supported", "basis": "evidence"},
                 {"id": "c4", "text": "d", "positions": {"claude": "asserts", "codex": "disputes"},
-                 "disposition": "unresolved", "basis": "unverified"}],
-            "ground_truth": {"outcome": "claude", "note": "fix merged", "labeled_at": "2026-10-02T00:00:00Z"}}))
+                 "disposition": "unresolved", "basis": "unverified"},
+                # Schema-1 verdicts could reject a claim nobody checked; that ruling scores nobody.
+                {"id": "c5", "text": "e", "positions": {"claude": "asserts", "codex": "disputes"},
+                 "disposition": "rejected", "basis": "unverified"},
+                {"id": "c6", "text": "f", "positions": {"claude": "disputes", "codex": "asserts"},
+                 "disposition": "supported", "basis": "preference"}],
+            "ground_truth": {"outcome": "claude", "answer": "partly", "note": "fix merged",
+                             "labeled_at": "2026-10-02T00:00:00Z"}}))
 
     def run_stats(self, *extra):
         command = [sys.executable, str(STATS), "--thabto-state", str(self.thabto), *extra]
@@ -156,11 +162,13 @@ class ThabtoStatsTests(unittest.TestCase):
         self.assertAlmostEqual(codex["stages"]["attempt"]["minutes"], 1.5)
         self.assertEqual(claude["stages"]["attempt"]["outcome"], "answered")
         self.assertEqual(run["verdict"], {
-            "material_disagreement": True, "selected_backbone": "claude", "claims": 4, "disputed_claims": 3,
+            "material_disagreement": True, "selected_backbone": "claude", "claims": 6, "disputed_claims": 5,
             "scorecard": {"claude": {"right": 2, "wrong": 0}, "codex": {"right": 0, "wrong": 2}},
-            "ground_truth": "claude"})
+            "ground_truth": "claude", "answer": "partly"})
         self.assertEqual(summary["verdicts"], {"runs_with_verdict": 1,
-                                               "material_disagreement": {"true": 1, "false": 0}, "labeled": 1})
+                                               "material_disagreement": {"true": 1, "false": 0}, "labeled": 1,
+                                               "answers": {"correct": 0, "partly": 1, "wrong": 0, "unknown": 0,
+                                                           "ungraded": 0}})
         groups = {(g["harness"], g["model"]): g for g in summary["by_participant"]}
         fable = groups[("claude-code", "claude-fable-5-1")]
         self.assertEqual((fable["verdicts"], fable["selected"], fable["disputed_right"], fable["disputed_wrong"],
@@ -189,7 +197,8 @@ class ThabtoStatsTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         for text in ("THABTO runs", "20260910T171439Z-aaaaaaaaaaaa", "claude-sonnet-5",
                      "unreadable", "20260912T000000Z-dddddddddddd",
-                     "verdicts: 1 runs", "ground truth labeled 1"):
+                     "verdicts: 1 runs", "ground truth labeled 1",
+                     "final answer: correct 0, partly 1, wrong 0, unknown 0, ungraded 0"):
             self.assertIn(text, result.stdout)
 
     def test_missing_default_state_is_empty_but_explicit_missing_path_is_an_error(self):

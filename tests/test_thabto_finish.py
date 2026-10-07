@@ -11,7 +11,7 @@ ROOT = Path(__file__).resolve().parents[1]
 FINISH = ROOT / "skills/.local/share/skills/thabto/scripts/thabto_finish.py"
 
 VERDICT = {
-    "schema": 1,
+    "schema": 2,
     "coordinator": {"harness": "claude-code", "model": "claude-fable-5-1"},
     "material_disagreement": True,
     "selected_backbone": "codex",
@@ -19,7 +19,8 @@ VERDICT = {
         {"id": "c1", "text": "The sum query double-counts the shared queue.",
          "positions": {"claude": "asserts", "codex": "disputes"}, "disposition": "supported", "basis": "evidence"},
         {"id": "c2", "text": "The tuner applies one duration change twice.",
-         "positions": {"claude": "silent", "codex": "asserts"}, "disposition": "unresolved", "basis": "unverified"},
+         "positions": {"claude": "silent", "codex": "asserts"}, "disposition": "unresolved", "basis": "unverified",
+         "settle_by": "Tuner logs for one deploy show whether the change is applied once or twice."},
     ],
     "ground_truth": None,
 }
@@ -51,8 +52,10 @@ class ThabtoFinishTests(unittest.TestCase):
                    "--synthesis", str(synthesis or self.synthesis), "--verdict", str(path)]
         return subprocess.run(command, text=True, capture_output=True, timeout=30)
 
-    def label(self, outcome, note=""):
+    def label(self, outcome, note="", answer="correct"):
         command = [sys.executable, str(FINISH), "--run", str(self.run), "--label", outcome, "--note", note]
+        if answer is not None:
+            command += ["--answer", answer]
         return subprocess.run(command, text=True, capture_output=True, timeout=30)
 
     def test_finish_records_synthesis_verdict_and_status(self):
@@ -81,7 +84,7 @@ class ThabtoFinishTests(unittest.TestCase):
             mutate(verdict)
             cases.append((token, verdict))
 
-        case("schema", lambda v: v.update(schema=2))
+        case("schema", lambda v: v.update(schema=1))
         case("coordinator", lambda v: v.update(coordinator={"harness": "claude-code"}))
         case("selected_backbone", lambda v: v.update(selected_backbone="gpt"))
         case("ground_truth", lambda v: v.update(ground_truth={"outcome": "codex"}))
@@ -93,6 +96,11 @@ class ThabtoFinishTests(unittest.TestCase):
         case("basis", lambda v: v["claims"][1].update(basis="vibes"))
         case("duplicated", lambda v: v["claims"][1].update(id="c1"))
         case("material_disagreement", lambda v: v.update(material_disagreement=False))
+        # "Not proven" is unresolved; rejected means evidence contradicts the claim.
+        case("contradicts", lambda v: v["claims"][0].update(disposition="rejected", basis="unverified"))
+        case("contradicts", lambda v: v["claims"][0].update(disposition="rejected", basis="preference"))
+        case("settle_by", lambda v: v["claims"][1].pop("settle_by"))
+        case("settle_by", lambda v: v["claims"][1].update(settle_by="  "))
         for token, verdict in cases:
             with self.subTest(token=token):
                 result = self.finish(verdict)
@@ -130,10 +138,16 @@ class ThabtoFinishTests(unittest.TestCase):
         self.assertIn("verdict.json", result.stderr)
         self.assertEqual(self.finish().returncode, 0)
         self.assertNotEqual(self.label("gpt").returncode, 0)
-        result = self.label("codex", "Fix merged in PR 174300 matched codex's claim c1.")
+        # The final answer is THABTO's product, so every label also grades it.
+        result = self.label("codex", answer=None)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("--answer", result.stderr)
+        self.assertNotEqual(self.label("codex", answer="mostly").returncode, 0)
+        result = self.label("codex", "Fix merged in PR 174300 matched codex's claim c1.", answer="partly")
         self.assertEqual(result.returncode, 0, result.stderr)
         truth = json.loads((self.run / "verdict.json").read_text())["ground_truth"]
-        self.assertEqual((truth["outcome"], truth["note"]), ("codex", "Fix merged in PR 174300 matched codex's claim c1."))
+        self.assertEqual((truth["outcome"], truth["answer"], truth["note"]),
+                         ("codex", "partly", "Fix merged in PR 174300 matched codex's claim c1."))
         self.assertRegex(truth["labeled_at"], r"Z$")
         result = self.finish()
         self.assertNotEqual(result.returncode, 0)
@@ -157,8 +171,14 @@ class ThabtoFinishTests(unittest.TestCase):
         labeled = state / "20260927T000000Z-bbbbbbbbbbbb"
         labeled.mkdir()
         done = copy.deepcopy(VERDICT)
-        done["ground_truth"] = {"outcome": "codex", "note": "", "labeled_at": "2026-10-01T00:00:00Z"}
+        done["ground_truth"] = {"outcome": "codex", "answer": "correct", "note": "", "labeled_at": "2026-10-01T00:00:00Z"}
         (labeled / "verdict.json").write_text(json.dumps(done))
+        # Labeled before answers were graded: listed so the answer grade can be added.
+        ungraded = state / "20260927T120000Z-dddddddddddd"
+        ungraded.mkdir()
+        old = copy.deepcopy(VERDICT)
+        old["ground_truth"] = {"outcome": "claude", "note": "", "labeled_at": "2026-10-01T00:00:00Z"}
+        (ungraded / "verdict.json").write_text(json.dumps(old))
         (state / "20260928T000000Z-cccccccccccc").mkdir()  # no verdict yet
         result = subprocess.run([sys.executable, str(FINISH), "--pending", "--state", str(state)],
                                 text=True, capture_output=True, timeout=30)
@@ -169,7 +189,9 @@ class ThabtoFinishTests(unittest.TestCase):
                       result.stdout)
         self.assertNotIn("c2", result.stdout)  # not disputed: one side silent
         self.assertNotIn("bbbbbbbbbbbb", result.stdout)
-        self.assertIn("1 run(s) await a ground-truth label.", result.stdout)
+        self.assertIn("20260927T120000Z-dddddddddddd  selected=codex  disagreement=True  labeled=claude, answer ungraded",
+                      result.stdout)
+        self.assertIn("2 run(s) await a label or an answer grade.", result.stdout)
         result = subprocess.run([sys.executable, str(FINISH), "--pending", "--state", str(state), "--label", "codex"],
                                 text=True, capture_output=True, timeout=30)
         self.assertNotEqual(result.returncode, 0)
@@ -180,7 +202,8 @@ class ThabtoFinishTests(unittest.TestCase):
                 result = subprocess.run([sys.executable, str(FINISH), "--run", str(self.run), *extra],
                                         text=True, capture_output=True, timeout=30)
                 self.assertNotEqual(result.returncode, 0)
-        result = subprocess.run([sys.executable, str(FINISH), "--run", str(self.root / "absent"), "--label", "codex"],
+        result = subprocess.run([sys.executable, str(FINISH), "--run", str(self.root / "absent"), "--label", "codex",
+                                 "--answer", "correct"],
                                 text=True, capture_output=True, timeout=30)
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("absent", result.stderr)

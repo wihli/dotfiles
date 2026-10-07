@@ -21,8 +21,16 @@ THABTO is read-only. Each model can read local files in the workspace. Each mode
 1. **Attempt.** Each participant answers the task in parallel. No participant sees another participant's answer.
 2. **Review.** The driver shuffles the participants into a ring. Each participant reviews the next participant's attempt and lists errors and omissions. With two participants, they review each other.
 3. **Revision.** Each participant that received a review revises its own answer. It can accept or reject each correction.
-4. **Synthesis.** The coordinator reads the final answers, goes back to the attempts and reviews when it must settle a claim, and writes one answer. Agreement between models counts as zero evidence; the coordinator rules on each claim from the sources.
-5. **Verdict.** The coordinator records a `verdict.json` file. For each claim that decided the outcome, the file stores each participant's position (`asserts`, `disputes`, or `silent`) and the coordinator's ruling (`supported`, `rejected`, or `unresolved`).
+4. **Synthesis.** The coordinator reads the final answers, goes back to the attempts and reviews when it must settle a claim, and writes one answer. Agreement between models counts as zero evidence; the coordinator rules on each claim from the sources. For each claim the evidence cannot settle yet, the answer names the check that would settle it.
+5. **Verdict.** The coordinator records a `verdict.json` file. For each claim that decided the outcome, the file stores each participant's position (`asserts`, `disputes`, or `silent`) and the coordinator's ruling:
+
+   | Ruling | Meaning |
+   |---|---|
+   | `supported` | Evidence shows the claim holds |
+   | `rejected` | Evidence contradicts the claim |
+   | `unresolved` | The evidence at hand cannot settle the claim. The verdict records the check that would settle it in `settle_by` |
+
+   A claim that is plausible but unproven is `unresolved`. The finish script refuses a `rejected` ruling without evidence.
 
 Each stage starts a fresh process for each participant. A failed or timed-out participant drops out of the later stages. The run continues if at least two attempts succeeded.
 
@@ -45,17 +53,19 @@ The default pair is `claude-opus-5-5` and `gpt-6-sol` at `high` effort. For a ha
 python3 ~/.local/share/skills/thabto/scripts/thabto_stats.py
 ```
 
-The report lists every run, the time and cost of each stage, and a per-model table. The table columns are:
+The report lists every run and the time and cost of each stage. The `final answer` line counts how the real outcome graded THABTO's answers: `correct`, `partly`, `wrong`, `unknown`, or `ungraded` for labels recorded before answers were graded. This line measures THABTO itself.
+
+A per-model table follows. Its columns are:
 
 | Column | Meaning |
 |---|---|
 | `runs` / `failed` | Runs the model took part in, and runs where it failed at some stage |
 | `verdicts` | Runs with a recorded verdict |
 | `selected` | Runs where the coordinator built its answer mainly on this model's answer. Most runs record `merged` |
-| `right/wrong-on-disputed` | On claims where the models disagreed, how often this model's position matched the coordinator's ruling |
+| `right/wrong-on-disputed` | On claims where the models disagreed, how often this model's position matched the coordinator's ruling. Only rulings based on evidence count |
 | `truth-wins` | Labeled runs where the real outcome showed this model, or both models, to be right |
 
-`right/wrong` measures agreement with the coordinator, which is itself a model. Only `truth-wins` measures agreement with what actually happened. Use `truth-wins` to decide which model is more accurate.
+`right/wrong` measures agreement with the coordinator, which is itself a model and can be wrong. `truth-wins` measures agreement with what actually happened. Use `truth-wins` to decide which model is more accurate.
 
 Add `--json` for machine-readable output.
 
@@ -66,10 +76,11 @@ After the real answer is known, such as a merged fix, a confirmed root cause, or
 ```sh
 python3 ~/.local/share/skills/thabto/scripts/thabto_finish.py --pending
 python3 ~/.local/share/skills/thabto/scripts/thabto_finish.py \
-  --run ~/.local/state/thabto/<run-id> --label codex --note "PR 1234 merged codex's fix"
+  --run ~/.local/state/thabto/<run-id> --label codex --answer correct \
+  --note "PR 1234 merged codex's fix"
 ```
 
-`--pending` lists runs that have no label yet, with the claims the models disagreed on. `--label` accepts a participant name, `both`, `neither`, or `unknown`. Label from independent facts such as metrics, logs, or merge state, or from the position you adopted. Use `unknown` when nothing settled the question. Another model's opinion is never a label.
+`--pending` lists runs that have no label or no answer grade yet, with the claims the models disagreed on. `--label` says which participant the outcome proved right: a participant name, `both`, `neither`, or `unknown`. `--answer` grades the coordinator's final answer, which is what you received: `correct`, `partly`, `wrong`, or `unknown`. A new label replaces the old label and note, so repeat the note when you add a grade to an older label. Label from independent facts such as metrics, logs, or merge state, or from the position you adopted. Use `unknown` when nothing settled the question. Another model's opinion is never a label.
 
 ## Run files
 

@@ -79,7 +79,9 @@ def participants_of(metadata):
 
 def verdict_of(run, names):
     """Verdict facts plus a scorecard: on claims one participant asserted and another
-    disputed, whoever sided with the coordinator's disposition was right."""
+    disputed, whoever sided with the coordinator's disposition was right. Only rulings
+    with basis "evidence" score; a preference or an unchecked ruling says nothing about
+    who was right."""
     verdict = read_json(run / "verdict.json")
     if not isinstance(verdict, dict):
         return None
@@ -91,7 +93,7 @@ def verdict_of(run, names):
             continue
         disputed += 1
         correct = {"supported": "asserts", "rejected": "disputes"}.get(claim.get("disposition"))
-        if not correct:
+        if not correct or claim.get("basis") != "evidence":
             continue
         for name, position in positions.items():
             if name in scorecard and position != "silent":
@@ -104,6 +106,7 @@ def verdict_of(run, names):
         "disputed_claims": disputed,
         "scorecard": scorecard,
         "ground_truth": truth.get("outcome") if isinstance(truth, dict) else None,
+        "answer": truth.get("answer") if isinstance(truth, dict) else None,
     }
 
 
@@ -194,7 +197,12 @@ def thabto_summary(state):
         "verdicts": {"runs_with_verdict": len(verdicts),
                      "material_disagreement": {"true": sum(v["material_disagreement"] is True for v in verdicts),
                                                "false": sum(v["material_disagreement"] is False for v in verdicts)},
-                     "labeled": sum(v["ground_truth"] is not None for v in verdicts)},
+                     "labeled": sum(v["ground_truth"] is not None for v in verdicts),
+                     # Labels recorded before answers were graded count as ungraded.
+                     "answers": {**{grade: sum(v["answer"] == grade for v in verdicts)
+                                    for grade in ("correct", "partly", "wrong", "unknown")},
+                                 "ungraded": sum(v["ground_truth"] is not None and not v["answer"]
+                                                 for v in verdicts)}},
         "runs": runs,
         "unreadable": unreadable,
         "by_participant": by_participant(runs),
@@ -224,6 +232,9 @@ def format_text(summary):
     v = thabto["verdicts"]
     lines.append(f"  verdicts: {v['runs_with_verdict']} runs (material disagreement true {v['material_disagreement']['true']}, "
                  f"false {v['material_disagreement']['false']}; ground truth labeled {v['labeled']})")
+    a = v["answers"]
+    lines.append(f"  final answer: correct {a['correct']}, partly {a['partly']}, wrong {a['wrong']}, "
+                 f"unknown {a['unknown']}, ungraded {a['ungraded']}")
     lines.append("")
     lines.append("By participant (harness, model): runs failed | mean minutes attempt/review/revision | mean cost | "
                  "verdicts selected right/wrong-on-disputed truth-wins")

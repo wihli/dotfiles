@@ -9,11 +9,15 @@ from pathlib import Path
 import sys
 
 
-VERDICT_SCHEMA = 1
+VERDICT_SCHEMA = 2
 POSITIONS = ("asserts", "disputes", "silent")
-# The coordinator's evidence-based ruling on each claim.
+# The coordinator's ruling on each claim. "rejected" means evidence contradicts the claim;
+# a claim that is merely unproven is "unresolved", or the scorecard would credit whoever
+# doubted it even when the claim later proves true.
 DISPOSITIONS = ("supported", "rejected", "unresolved")
 BASES = ("evidence", "preference", "unverified")
+# How the real outcome graded the coordinator's final answer.
+ANSWER_GRADES = ("correct", "partly", "wrong", "unknown")
 LEGACY_PARTICIPANTS = ("claude", "codex")
 
 
@@ -80,6 +84,13 @@ def validate_verdict(verdict, participants):
         expect(claim.get("disposition") in DISPOSITIONS,
                f"{where}.disposition is {claim.get('disposition')!r}; use one of {list(DISPOSITIONS)}.")
         expect(claim.get("basis") in BASES, f"{where}.basis is {claim.get('basis')!r}; use one of {list(BASES)}.")
+        expect(claim["disposition"] != "rejected" or claim["basis"] == "evidence",
+               f"{where} is rejected with basis {claim['basis']!r}; reject only with evidence that contradicts "
+               "the claim, and mark an unproven claim unresolved.")
+        if claim["disposition"] == "unresolved":
+            settle_by = claim.get("settle_by")
+            expect(isinstance(settle_by, str) and settle_by.strip(),
+                   f"{where}.settle_by must name the check that would settle this unresolved claim.")
         disputed = disputed or ({"asserts", "disputes"} <= set(positions.values()))
     expect(verdict["material_disagreement"] == disputed,
            f"verdict.material_disagreement is {verdict['material_disagreement']}, but the claims "
@@ -118,37 +129,43 @@ def finish(run, synthesis_path, verdict_path):
     print(f"Recorded synthesis.md and verdict.json; status synthesized: {run}")
 
 
-def label(run, outcome, note):
+def label(run, outcome, answer, note):
     metadata = load_run(run)
     outcomes = set(participants_of(metadata)) | {"both", "neither", "unknown"}
     expect(outcome in outcomes, f"Label {outcome!r} is not one of {sorted(outcomes)}.")
+    expect(answer in ANSWER_GRADES, f"Answer grade {answer!r} is not one of {list(ANSWER_GRADES)}.")
     verdict_path = run / "verdict.json"
     expect(verdict_path.exists(), f"{verdict_path} does not exist; record the synthesis and verdict first.")
     verdict = load_json(verdict_path, "verdict")
-    verdict["ground_truth"] = {"outcome": outcome, "note": note, "labeled_at": utc_now()}
+    verdict["ground_truth"] = {"outcome": outcome, "answer": answer, "note": note, "labeled_at": utc_now()}
     verdict_path.write_text(json.dumps(verdict, indent=2) + "\n", encoding="utf-8")
-    print(f"Labeled ground truth {outcome!r}: {run}")
+    print(f"Labeled ground truth {outcome!r}, final answer {answer!r}: {run}")
 
 
 def pending(state):
-    """List runs whose verdict still lacks a ground-truth label, with the claims that
-    divided the participants, so a human can label them in one pass."""
+    """List runs whose verdict lacks a ground-truth label or an answer grade, with the
+    claims that divided the participants, so a human can label them in one pass."""
     waiting = 0
     for run in sorted(state.iterdir()) if state.is_dir() else []:
         verdict = read_optional_json(run / "verdict.json")
-        if not isinstance(verdict, dict) or verdict.get("ground_truth"):
+        if not isinstance(verdict, dict):
+            continue
+        truth = verdict.get("ground_truth")
+        if isinstance(truth, dict) and truth.get("answer"):
             continue
         waiting += 1
         task = (run / "task.md").read_text(encoding="utf-8", errors="replace") if (run / "task.md").exists() else ""
+        labeled = f"  labeled={truth.get('outcome')}, answer ungraded" if isinstance(truth, dict) else ""
         print(f"\n{run.name}  selected={verdict.get('selected_backbone')}  "
-              f"disagreement={verdict.get('material_disagreement')}")
+              f"disagreement={verdict.get('material_disagreement')}{labeled}")
         print("  task: " + " ".join(task.split())[:240])
         for claim in verdict.get("claims") or []:
             positions = claim.get("positions") or {}
             if {"asserts", "disputes"} <= set(positions.values()):
                 who = ", ".join(f"{name}={position}" for name, position in positions.items())
                 print(f"  disputed {claim.get('id')} [{claim.get('disposition')}]: {claim.get('text')}  ({who})")
-    print(f"\n{waiting} run(s) await a ground-truth label." if waiting else "No runs await a ground-truth label.")
+    print(f"\n{waiting} run(s) await a label or an answer grade." if waiting
+          else "No runs await a label or an answer grade.")
 
 
 def read_optional_json(path):
@@ -165,13 +182,15 @@ def parse_args():
     parser.add_argument("--synthesis", type=Path, help="File holding the coordinator's final answer.")
     parser.add_argument("--verdict", type=Path, help="JSON file holding the structured verdict.")
     parser.add_argument("--label", help="Ground-truth outcome: a participant name, both, neither, or unknown.")
+    parser.add_argument("--answer", help=f"With --label: how the outcome graded the final answer "
+                                          f"({', '.join(ANSWER_GRADES)}).")
     parser.add_argument("--note", default="", help="What settled the ground truth (used with --label).")
-    parser.add_argument("--pending", action="store_true", help="List runs still awaiting a ground-truth label.")
+    parser.add_argument("--pending", action="store_true", help="List runs still awaiting a ground-truth label or an answer grade.")
     parser.add_argument("--state", type=Path, default=state_home / "thabto",
                         help="THABTO run directory root for --pending (default: $XDG_STATE_HOME/thabto).")
     args = parser.parse_args()
     if args.pending:
-        if args.run or args.synthesis or args.verdict or args.label:
+        if args.run or args.synthesis or args.verdict or args.label or args.answer:
             parser.error("--pending takes no other action; pass it alone (optionally with --state).")
         args.state = args.state.resolve()
         if not args.state.is_dir():
@@ -182,6 +201,11 @@ def parse_args():
         parser.error("Pass both --synthesis and --verdict to record a synthesis, or --label alone to label one.")
     if not recording and not args.label:
         parser.error("Pass --synthesis with --verdict, --label, or --pending.")
+    if args.label and not args.answer:
+        parser.error("--label needs --answer: grade the final answer against the outcome "
+                     f"({', '.join(ANSWER_GRADES)}).")
+    if args.answer and not args.label:
+        parser.error("--answer is used with --label.")
     if args.run is None:
         parser.error("--run is required; pass the run path the driver printed.")
     args.run = args.run.resolve()
@@ -196,7 +220,7 @@ def main():
         if args.pending:
             pending(args.state)
         elif args.label:
-            label(args.run, args.label, args.note)
+            label(args.run, args.label, args.answer, args.note)
         else:
             finish(args.run, args.synthesis.resolve(), args.verdict.resolve())
     except VerdictError as error:
