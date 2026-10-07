@@ -81,6 +81,8 @@ Run `python3 "<skill-directory>/scripts/thabto_finish.py" --run "<run>" --synthe
 
 When the real outcome becomes known — a merged fix, a confirmed root cause — record it: `python3 "<skill-directory>/scripts/thabto_finish.py" --run "<run>" --label <participant|both|neither|unknown> --answer <correct|partly|wrong|unknown> --note "<what settled it>"`. `--label` says which participant the outcome proved right; `--answer` grades the synthesis itself, which is what the user received. `--pending` lists the runs still waiting for a label or an answer grade, with the claims that divided the participants. Relabeling a run replaces its label and note, so restate the note when adding an answer grade to an older label. If a later conversation reveals how a question THABTO investigated turned out, label that run before moving on; a verdict without a label only says which answer the coordinator preferred.
 
+To label pending runs in bulk with two independent judges, follow `LABELING.md` in this skill's directory.
+
 ## Saved exchange
 
 Runs live under `$XDG_STATE_HOME/thabto/<run-id>/`, defaulting to `~/.local/state/thabto/<run-id>/`. Each run directory is private to the user. Each stage/provider directory contains `prompt.md`, `command.json`, `stdout.log`, `stderr.log`, and, after success, `answer.md`. Codex also writes `final-message.md`. Failures retain `error.txt`. `run.json` records status (`running`, `awaiting_synthesis`, `synthesized`, `failed`, `cancelled`), the participants with their harness, model, and effort, and per-stage timing and exit codes; raw provider output retains any provider-reported usage and model details. After synthesis the run also holds `synthesis.md` and `verdict.json`. The driver does not record the child environment.

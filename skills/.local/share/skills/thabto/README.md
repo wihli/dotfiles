@@ -82,6 +82,16 @@ python3 ~/.local/share/skills/thabto/scripts/thabto_finish.py \
 
 `--pending` lists runs that have no label or no answer grade yet, with the claims the models disagreed on. `--label` says which participant the outcome proved right: a participant name, `both`, `neither`, or `unknown`. `--answer` grades the coordinator's final answer, which is what you received: `correct`, `partly`, `wrong`, or `unknown`. A new label replaces the old label and note, so repeat the note when you add a grade to an older label. Label from independent facts such as metrics, logs, or merge state, or from the position you adopted. Use `unknown` when nothing settled the question. Another model's opinion is never a label.
 
+### Let two judges label for you
+
+Ask an agent to "label pending THABTO runs". The agent follows `LABELING.md`:
+
+1. It gathers evidence for each pending run from Datadog, GitHub, Slack, and Jira, and saves it as `label-evidence.md` in the run directory.
+2. A Claude Code judge and a Codex judge each read that evidence and the run, and each returns an outcome and an answer grade.
+3. When both judges agree, `scripts/thabto_label.py` records the label. When they disagree, the agent shows you both rulings and you decide.
+
+Runs that nothing has settled yet stay pending for the next pass. Start a pass whenever outcomes have had time to land, such as a week after a batch of runs.
+
 ## Run files
 
 Each run is a private directory under `~/.local/state/thabto/<run-id>/` (or `$XDG_STATE_HOME/thabto/`):
@@ -104,6 +114,8 @@ A run's `status` is `running`, `awaiting_synthesis`, `synthesized`, `failed`, or
 | `scripts/thabto.py` | Driver: runs the attempt, review, and revision stages |
 | `scripts/thabto_finish.py` | Validates and stores the synthesis and verdict; records labels |
 | `scripts/thabto_stats.py` | Reads all runs and prints the scoreboard |
+| `scripts/thabto_label.py` | Runs the two label judges and records labels they agree on |
+| `LABELING.md` | The labeling procedure the agent follows |
 | `harness/opencode.json` | Read-only agent definition for OpenCode |
 
 To add a harness, add one entry to `HARNESSES` in `scripts/thabto.py`. The entry gives the command, the function that reads the final answer, and the credentials to remove.
@@ -111,5 +123,5 @@ To add a harness, add one entry to `HARNESSES` in `scripts/thabto.py`. The entry
 Edit the source in `wihli-dotfiles/skills/.local/share/skills/thabto/`, then run `./install.sh`. Run the tests from the repository root:
 
 ```sh
-python3 -m unittest tests/test_thabto.py tests/test_thabto_finish.py tests/test_thabto_stats.py
+python3 -m unittest tests/test_thabto.py tests/test_thabto_finish.py tests/test_thabto_stats.py tests/test_thabto_label.py
 ```
