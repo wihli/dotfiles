@@ -34,18 +34,19 @@ If nothing can settle a run yet, skip it; it stays pending for a later pass.
 python3 "<skill-directory>/scripts/thabto_label.py" --run "<run>" [--run "<run>" ...]
 ```
 
-Defaults: `claude-opus-5-5` and `gpt-6-sol` at `high` effort, 600 s per judge. A run counts as settled once evidence decides at least one dividing claim or the answer's main finding; the judges rule on the claims that have evidence and name the ones still open. Both judges run read-only with no network and no MCP, the same isolation as THABTO participants. Each judge receives the task, every participant's final answer, the synthesis, the claim rulings, and `label-evidence.md`, and returns a ruling: settled or unsettled, an outcome, and an answer grade.
+Defaults: `claude-opus-5-5` and `gpt-6-sol` at `high` effort, 600 s per judge. A run counts as settled once evidence decides at least one dividing claim or the answer's main finding; the judges rule on the claims that have evidence and name the ones still open. Both judges run read-only with no network and no MCP, the same isolation as THABTO participants. Each judge receives the task, every participant's final answer, the synthesis, the claim rulings, and `label-evidence.md`, and returns a ruling: settled or unsettled, an outcome, an answer grade, and a grade for each participant's first attempt (its answer before review, which is what that model alone would have given).
 
 Per run, the script prints one decision and saves the judges' raw output under `<run>/labeling/<stamp>/`:
 
 | Decision | Meaning | Action |
 |---|---|---|
 | `labeled` | Both judges settled the run with the same outcome and answer grade. The script recorded the label with both judges' reasons as the note | None |
+| `confirmed` | Both judges agree with the outcome and answer grade already recorded. Nothing changes | None |
 | `unsettled` | Neither judge found evidence deciding any dividing claim or the answer's main finding | Leave pending; gather more evidence later |
-| `DISAGREE` | The judges differ, one settled and one did not, or both contradict an existing label | Surface to the user |
+| `DISAGREE` | The judges differ, one settled and one did not, or both contradict a recorded outcome or answer grade | Surface to the user |
 | `FAILED` | A judge failed or returned a malformed ruling | Read `labeling/<stamp>/judge/<name>/error.txt` and stderr; rerun that run |
 
-An existing label is never overturned. On an older run that already has an outcome label, agreement on the same outcome adds the answer grade and keeps the earlier note. An `unknown` label records only that nothing had settled the run, so agreement replaces it.
+Attempt grades are recorded per participant wherever both settled judges agree, in `verdict.json` `attempt_grades`, whatever the label decision; relabeling keeps them. To grade the attempts of runs labeled before attempt grading existed, rerun the judges on them with their existing evidence file. An existing label is never overturned. On an older run that already has an outcome label, agreement on the same outcome adds the answer grade and keeps the earlier note. An `unknown` label records only that nothing had settled the run, so agreement replaces it.
 
 ## 4. Report to the user
 

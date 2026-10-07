@@ -29,10 +29,12 @@ else:
 '''
 
 
-def ruling(outcome="codex", answer="correct", settled=True, reason="Datadog shows 0 errors over 26 h."):
+def ruling(outcome="codex", answer="correct", settled=True, reason="Datadog shows 0 errors over 26 h.",
+           attempts=None):
     if not settled:
         return json.dumps({"settled": False, "reason": "No outcome yet."})
-    return json.dumps({"settled": True, "outcome": outcome, "answer": answer, "reason": reason})
+    attempts = {"claude": "correct", "codex": "correct"} if attempts is None else attempts
+    return json.dumps({"settled": True, "outcome": outcome, "answer": answer, "attempts": attempts, "reason": reason})
 
 
 class ThabtoLabelTests(unittest.TestCase):
@@ -41,8 +43,10 @@ class ThabtoLabelTests(unittest.TestCase):
         self.addCleanup(self.temp.cleanup)
         self.root = Path(self.temp.name).resolve()
         self.run = self.root / "state/thabto/20261001T000000Z-aaaaaaaaaaaa"
-        for stage in ("revision/claude", "revision/codex"):
+        for stage in ("attempt/claude", "attempt/codex", "revision/claude", "revision/codex"):
             (self.run / stage).mkdir(parents=True)
+        (self.run / "attempt/claude/answer.md").write_text("CLAUDE ATTEMPT: impact unknown.")
+        (self.run / "attempt/codex/answer.md").write_text("CODEX ATTEMPT: impact unproven.")
         (self.run / "revision/claude/answer.md").write_text("CLAUDE FINAL: no customer impact.")
         (self.run / "revision/codex/answer.md").write_text("CODEX FINAL: impact unproven.")
         (self.run / "run.json").write_text(json.dumps({
@@ -99,6 +103,7 @@ class ThabtoLabelTests(unittest.TestCase):
             prompt = (self.prompts / (provider + ".md")).read_text()
             for text in ("TASK: investigate the alert.", "SYNTHESIS: impact not proven.",
                          "EVIDENCE: 0 config errors", "CLAUDE FINAL", "CODEX FINAL", "Error logs for 24 h.",
+                         "CLAUDE ATTEMPT", "CODEX ATTEMPT",
                          # Partly settled runs are labeled on the claims that have evidence.
                          "Rule on the claims that"):
                 self.assertIn(text, prompt)
@@ -116,11 +121,39 @@ class ThabtoLabelTests(unittest.TestCase):
         self.assertIn("DISAGREE", result.stdout)
         self.assertIsNone(self.verdict()["ground_truth"])
 
+    def test_attempt_grades_record_only_where_judges_agree(self):
+        # First attempts are what a single model alone would have answered; grading them
+        # measures what review and synthesis added.
+        result = self.label(ruling(attempts={"claude": "wrong", "codex": "correct"}),
+                            ruling(attempts={"claude": "wrong", "codex": "partly"}))
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(self.verdict()["attempt_grades"], {"claude": "wrong"})
+        self.assertIn("attempts claude=wrong; codex split", result.stdout)
+
+    def test_attempt_grades_survive_relabeling_and_a_disputed_outcome(self):
+        self.write_verdict({"outcome": "claude", "note": "Earlier label.", "labeled_at": "2026-10-06T00:00:00Z"})
+        result = self.label(ruling(attempts={"claude": "partly", "codex": "wrong"}),
+                            ruling(attempts={"claude": "partly", "codex": "wrong"}))
+        self.assertIn("DISAGREE", result.stdout)
+        verdict = self.verdict()
+        self.assertEqual(verdict["ground_truth"]["outcome"], "claude")
+        self.assertEqual(verdict["attempt_grades"], {"claude": "partly", "codex": "wrong"})
+        subprocess.run([sys.executable, str(LABEL.parent / "thabto_finish.py"), "--run", str(self.run),
+                        "--label", "both", "--answer", "correct"], check=True, capture_output=True)
+        self.assertEqual(self.verdict()["attempt_grades"], {"claude": "partly", "codex": "wrong"})
+
+    def test_settled_ruling_without_attempt_grades_fails(self):
+        result = self.label(ruling(attempts={"claude": "correct"}), ruling())
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("attempts", result.stdout)
+        self.assertNotIn("attempt_grades", self.verdict())
+
     def test_unsettled_runs_stay_pending(self):
         result = self.label(ruling(settled=False), ruling(settled=False))
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertIsNone(self.verdict()["ground_truth"])
         self.assertIn("unsettled", result.stdout)
+        self.assertNotIn("attempt_grades", self.verdict())
         result = self.label(ruling(settled=False), ruling())
         self.assertIn("DISAGREE", result.stdout)
         self.assertIsNone(self.verdict()["ground_truth"])
@@ -138,6 +171,18 @@ class ThabtoLabelTests(unittest.TestCase):
         self.assertIn("existing label claude", result.stdout)
         self.assertEqual(self.verdict()["ground_truth"]["outcome"], "claude")
         self.assertNotIn("answer", self.verdict()["ground_truth"])
+
+    def test_a_recorded_answer_grade_is_never_overturned(self):
+        self.write_verdict({"outcome": "codex", "answer": "partly", "note": "User decided.",
+                            "labeled_at": "2026-10-07T00:00:00Z"})
+        result = self.label(ruling(answer="correct"), ruling(answer="correct"))
+        self.assertIn("DISAGREE", result.stdout)
+        self.assertIn("existing answer grade partly", result.stdout)
+        self.assertEqual(self.verdict()["ground_truth"]["answer"], "partly")
+        # Agreement that matches the record changes nothing.
+        result = self.label(ruling(answer="partly"), ruling(answer="partly"))
+        self.assertIn("confirmed outcome=codex answer=partly", result.stdout)
+        self.assertEqual(self.verdict()["ground_truth"]["note"], "User decided.")
 
     def test_agreement_replaces_an_unknown_label(self):
         # "unknown" records that nothing settled the run yet, not a position on who was right.

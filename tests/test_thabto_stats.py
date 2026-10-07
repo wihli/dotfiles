@@ -107,7 +107,8 @@ class ThabtoStatsTests(unittest.TestCase):
                 {"id": "c6", "text": "f", "positions": {"claude": "disputes", "codex": "asserts"},
                  "disposition": "supported", "basis": "preference"}],
             "ground_truth": {"outcome": "claude", "answer": "partly", "note": "fix merged",
-                             "labeled_at": "2026-10-02T00:00:00Z"}}))
+                             "labeled_at": "2026-10-02T00:00:00Z"},
+            "attempt_grades": {"claude": "correct", "codex": "wrong"}}))
 
     def run_stats(self, *extra):
         command = [sys.executable, str(STATS), "--thabto-state", str(self.thabto), *extra]
@@ -164,7 +165,7 @@ class ThabtoStatsTests(unittest.TestCase):
         self.assertEqual(run["verdict"], {
             "material_disagreement": True, "selected_backbone": "claude", "claims": 6, "disputed_claims": 5,
             "scorecard": {"claude": {"right": 2, "wrong": 0}, "codex": {"right": 0, "wrong": 2}},
-            "ground_truth": "claude", "answer": "partly"})
+            "ground_truth": "claude", "answer": "partly", "attempt_grades": {"claude": "correct", "codex": "wrong"}})
         self.assertEqual(summary["verdicts"], {"runs_with_verdict": 1,
                                                "material_disagreement": {"true": 1, "false": 0}, "labeled": 1,
                                                "answers": {"correct": 0, "partly": 1, "wrong": 0, "unknown": 0,
@@ -173,6 +174,9 @@ class ThabtoStatsTests(unittest.TestCase):
         fable = groups[("claude-code", "claude-fable-5-1")]
         self.assertEqual((fable["verdicts"], fable["selected"], fable["disputed_right"], fable["disputed_wrong"],
                           fable["truth_wins"]), (1, 1, 2, 0, 1))
+        # A first attempt is what this model alone would have answered.
+        self.assertEqual(fable["attempts"], {"correct": 1, "partly": 0, "wrong": 0})
+        self.assertEqual(groups[("codex", "gpt-6-sol")]["attempts"], {"correct": 0, "partly": 0, "wrong": 1})
         sol = groups[("codex", "gpt-6-sol")]
         self.assertEqual((sol["verdicts"], sol["selected"], sol["disputed_right"], sol["disputed_wrong"],
                           sol["truth_wins"]), (1, 0, 0, 2, 0))
@@ -198,7 +202,8 @@ class ThabtoStatsTests(unittest.TestCase):
         for text in ("THABTO runs", "20260910T171439Z-aaaaaaaaaaaa", "claude-sonnet-5",
                      "unreadable", "20260912T000000Z-dddddddddddd",
                      "verdicts: 1 runs", "ground truth labeled 1",
-                     "final answer: correct 0, partly 1, wrong 0, unknown 0, ungraded 0"):
+                     "final answer: correct 0, partly 1, wrong 0, unknown 0, ungraded 0",
+                     "attempt c/p/w", " 1/0/0", " 0/0/1"):
             self.assertIn(text, result.stdout)
 
     def test_missing_default_state_is_empty_but_explicit_missing_path_is_an_error(self):

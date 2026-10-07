@@ -27,11 +27,15 @@ GRADES = tuple(grade for grade in ANSWER_GRADES if grade != "unknown")
 RULES = """You are a THABTO label judge. Work read-only: leave every file and system unchanged,
 and do not invoke THABTO or other agents.
 
-Decide two things about a finished THABTO run from independent evidence only:
+Decide three things about a finished THABTO run from independent evidence only:
 1. outcome: which participant the real outcome proved right on the claims that divided
    them: a participant name, "both", or "neither".
 2. answer: how the real outcome grades the coordinator's final answer: "correct",
    "partly", or "wrong".
+3. attempts: how the real outcome grades each participant's first attempt, written
+   before any review: "correct", "partly", or "wrong". An attempt is what the user
+   would have received from that model alone, so grade it on its own claims and
+   recommendations, not on corrections that arrived later.
 
 Independent evidence means facts in the evidence file: metrics, logs, merge state, a
 confirmed root cause, or the user adopting a position. The participants' answers, the
@@ -50,7 +54,7 @@ finding has evidence: an unsettled run stays open for a later pass, and a wrong 
 corrupts the record.
 
 End your reply with one fenced JSON block, either
-{"settled": true, "outcome": "<name|both|neither>", "answer": "<correct|partly|wrong>", "reason": "<one or two sentences citing the evidence>"}
+{"settled": true, "outcome": "<name|both|neither>", "answer": "<correct|partly|wrong>", "attempts": {"<name>": "<correct|partly|wrong>", ...}, "reason": "<one or two sentences citing the evidence>"}
 or
 {"settled": false, "reason": "<what is missing>"}
 """
@@ -62,6 +66,10 @@ def judge_prompt(run, names):
     finals = metadata.get("final_answers") or {}
     parts = [RULES, f"Participants: {', '.join(names)}.", "\n# Task the participants received\n",
              (run / "task.md").read_text(encoding="utf-8")]
+    for name in names:
+        path = run / "attempt" / name / "answer.md"
+        text = path.read_text(encoding="utf-8") if path.exists() else "(no attempt recorded)"
+        parts += [f"\n# First attempt of participant {name} (before review)\n", text]
     for name in names:
         path = run / finals.get(name, f"revision/{name}/answer.md")
         text = path.read_text(encoding="utf-8") if path.exists() else "(no final answer recorded)"
@@ -88,13 +96,34 @@ def parse_ruling(answer, names):
             raise ValueError(f"outcome {ruling.get('outcome')!r} is not one of {list(outcomes)}")
         if ruling.get("answer") not in GRADES:
             raise ValueError(f"answer {ruling.get('answer')!r} is not one of {list(GRADES)}")
+        attempts = ruling.get("attempts")
+        if (not isinstance(attempts, dict) or set(attempts) != set(names)
+                or any(grade not in GRADES for grade in attempts.values())):
+            raise ValueError(f"attempts must grade each participant {names} as one of {list(GRADES)}; "
+                             f"got {attempts!r}")
     return ruling
+
+
+def record_attempt_grades(run, rulings, names):
+    """Store each participant's attempt grade where both settled judges agree. The grades
+    live beside ground_truth so relabeling never drops them."""
+    if not all(r["settled"] for r in rulings):
+        return ""
+    agreed = {name: rulings[0]["attempts"][name] for name in names
+              if rulings[0]["attempts"][name] == rulings[1]["attempts"][name]}
+    if agreed:
+        verdict = load_json(run / "verdict.json", "verdict")
+        verdict["attempt_grades"] = {**(verdict.get("attempt_grades") or {}), **agreed}
+        (run / "verdict.json").write_text(json.dumps(verdict, indent=2) + "\n", encoding="utf-8")
+    shown = [f"{name}={agreed[name]}" if name in agreed else f"{name} split" for name in names]
+    return "; attempts " + "; ".join(shown)
 
 
 def describe(judge, ruling):
     if not ruling["settled"]:
         return f"{judge}: unsettled; {ruling['reason']}"
-    return f"{judge}: outcome={ruling['outcome']} answer={ruling['answer']}; {ruling['reason']}"
+    attempts = ",".join(f"{name}:{grade}" for name, grade in ruling["attempts"].items())
+    return f"{judge}: outcome={ruling['outcome']} answer={ruling['answer']} attempts={attempts}; {ruling['reason']}"
 
 
 def judge_run(run, judges, args, cancelled):
@@ -121,9 +150,17 @@ def judge_run(run, judges, args, cancelled):
     elif (first["settled"] and second["settled"] and first["outcome"] == second["outcome"]
           and first["answer"] == second["answer"]):
         # An "unknown" label records that nothing had settled the run, so agreement may replace it.
-        if existing and existing.get("outcome") not in (first["outcome"], "unknown"):
+        # Any other recorded outcome or answer grade stands; the user decides a conflict.
+        held = existing if existing and existing.get("outcome") != "unknown" else None
+        if held and held.get("outcome") != first["outcome"]:
             decision = "disagree"
-            line = f"DISAGREE judges agree on outcome={first['outcome']} but existing label {existing.get('outcome')} stands"
+            line = f"DISAGREE judges agree on outcome={first['outcome']} but existing label {held.get('outcome')} stands"
+        elif held and held.get("answer") and held["answer"] != first["answer"]:
+            decision = "disagree"
+            line = (f"DISAGREE judges agree on answer={first['answer']} but existing answer grade "
+                    f"{held['answer']} stands")
+        elif held and held.get("answer") == first["answer"]:
+            decision, line = "confirmed", f"confirmed outcome={first['outcome']} answer={first['answer']}"
         else:
             decision = "labeled"
             agreed = " ".join(describe(f"{name} ({judges[name]['model']})", rulings[name]) for name in judges)
@@ -134,6 +171,8 @@ def judge_run(run, judges, args, cancelled):
             line = f"labeled outcome={first['outcome']} answer={first['answer']}"
     else:
         decision, line = "disagree", "DISAGREE"
+    if decision != "failed":
+        line += record_attempt_grades(run, [first, second], names)
     if decision in ("disagree", "unsettled"):
         line += "".join(f"\n    {describe(name, rulings[name])}" for name in judges)
     (folder / "result.json").write_text(json.dumps(
@@ -186,7 +225,7 @@ def main():
         except (OSError, ValueError, VerdictError) as error:
             print(f"{run.name}: FAILED {error}", flush=True)
             decisions.append("failed")
-    counts = {d: decisions.count(d) for d in ("labeled", "unsettled", "disagree", "failed")}
+    counts = {d: decisions.count(d) for d in ("labeled", "confirmed", "unsettled", "disagree", "failed")}
     print("Summary: " + ", ".join(f"{d} {n}" for d, n in counts.items()), flush=True)
     return 130 if cancelled.is_set() else (1 if counts["failed"] else 0)
 

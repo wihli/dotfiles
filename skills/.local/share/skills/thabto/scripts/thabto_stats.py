@@ -107,6 +107,7 @@ def verdict_of(run, names):
         "scorecard": scorecard,
         "ground_truth": truth.get("outcome") if isinstance(truth, dict) else None,
         "answer": truth.get("answer") if isinstance(truth, dict) else None,
+        "attempt_grades": verdict.get("attempt_grades") or {},
     }
 
 
@@ -180,6 +181,9 @@ def by_participant(runs):
             "disputed_right": sum(v["scorecard"].get(name, {}).get("right", 0) for v, name in verdicts),
             "disputed_wrong": sum(v["scorecard"].get(name, {}).get("wrong", 0) for v, name in verdicts),
             "truth_wins": sum(v["ground_truth"] in (name, "both") for v, name in verdicts),
+            # How the real outcome graded this model's first attempt: its answer alone.
+            "attempts": {grade: sum(v["attempt_grades"].get(name) == grade for v, name in verdicts)
+                         for grade in ("correct", "partly", "wrong")},
         })
     return rows
 
@@ -237,13 +241,14 @@ def format_text(summary):
                  f"unknown {a['unknown']}, ungraded {a['ungraded']}")
     lines.append("")
     lines.append("By participant (harness, model): runs failed | mean minutes attempt/review/revision | mean cost | "
-                 "verdicts selected right/wrong-on-disputed truth-wins")
+                 "verdicts selected right/wrong-on-disputed truth-wins | attempt c/p/w")
     for g in thabto["by_participant"]:
         m = g["mean_minutes"]
         cost = "-" if g["mean_cost_usd"] is None else f"${g['mean_cost_usd']:.2f}"
         lines.append(f"  {g['harness']:<12} {str(g['model']):<24} {g['runs']:>4} {g['failed']:>6} | "
                      f"{fmt_minutes(m['attempt'])}/{fmt_minutes(m['review'])}/{fmt_minutes(m['revision'])} | {cost:>7} | "
-                     f"{g['verdicts']:>3} {g['selected']:>3} {g['disputed_right']}/{g['disputed_wrong']} {g['truth_wins']}")
+                     f"{g['verdicts']:>3} {g['selected']:>3} {g['disputed_right']}/{g['disputed_wrong']} {g['truth_wins']} | "
+                     f"{g['attempts']['correct']}/{g['attempts']['partly']}/{g['attempts']['wrong']}")
     return "\n".join(lines) + "\n"
 
 

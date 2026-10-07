@@ -89,7 +89,7 @@ Runs live under `$XDG_STATE_HOME/thabto/<run-id>/`, defaulting to `~/.local/stat
 
 ## Stats
 
-`python3 "<skill-directory>/scripts/thabto_stats.py"` summarizes every retained THABTO run under `$XDG_STATE_HOME`: status, synthesis presence, resolved models, per-stage minutes, Claude cost, final-answer grades, and verdict-derived scores per participant. It only reads. Add `--json` for machine-readable output, or `--thabto-state` to point at another directory. Fields a run never recorded print as `-` or `null`; they are not errors.
+`python3 "<skill-directory>/scripts/thabto_stats.py"` summarizes every retained THABTO run under `$XDG_STATE_HOME`: status, synthesis presence, resolved models, per-stage minutes, Claude cost, final-answer grades, and per participant the verdict-derived scores and first-attempt grades. It only reads. Add `--json` for machine-readable output, or `--thabto-state` to point at another directory. Fields a run never recorded print as `-` or `null`; they are not errors.
 
 ## Installation and discovery
 

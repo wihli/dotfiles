@@ -64,8 +64,9 @@ A per-model table follows. Its columns are:
 | `selected` | Runs where the coordinator built its answer mainly on this model's answer. Most runs record `merged` |
 | `right/wrong-on-disputed` | On claims where the models disagreed, how often this model's position matched the coordinator's ruling. Only rulings based on evidence count |
 | `truth-wins` | Labeled runs where the real outcome showed this model, or both models, to be right |
+| `attempt c/p/w` | How the real outcome graded this model's first attempt, before review: correct, partly, wrong. The first attempt is what you would have received from this model alone |
 
-`right/wrong` measures agreement with the coordinator, which is itself a model and can be wrong. `truth-wins` measures agreement with what actually happened. Use `truth-wins` to decide which model is more accurate.
+`right/wrong` measures agreement with the coordinator, which is itself a model and can be wrong. `truth-wins` measures agreement with what actually happened. Use `truth-wins` to decide which model is more accurate. Compare `attempt c/p/w` with the `final answer` line to see what review and synthesis added over a single model.
 
 Add `--json` for machine-readable output.
 
