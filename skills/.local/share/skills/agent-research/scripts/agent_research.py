@@ -69,6 +69,27 @@ def is_due(state, now):
     return state.get('status') == 'running' or not state.get('next_due_at') or date(state['next_due_at']) <= now
 
 
+def mac_awake():
+    if sys.platform != 'darwin':
+        return True
+    try:
+        output = subprocess.run(['/usr/bin/pmset', '-g', 'systemstate'],
+                                check=True, capture_output=True, text=True, timeout=5).stdout
+    except (OSError, subprocess.SubprocessError) as error:
+        raise RuntimeError(f'Cannot read Mac power state: {error}; check pmset -g systemstate') from error
+    match = re.search(r'^Current System Capabilities are:([^\n]*)$', output, re.MULTILINE)
+    if not match:
+        raise RuntimeError(f'Unknown Mac power state {output.strip()!r}; check pmset -g systemstate')
+    return {'CPU', 'Graphics'} <= set(match[1].split())
+
+
+def clocks():
+    awake = time.monotonic()
+    # macOS uptime stops during sleep; its continuous clock includes sleep without wall-clock adjustments.
+    elapsed = time.clock_gettime(time.CLOCK_MONOTONIC_RAW) if sys.platform == 'darwin' else awake
+    return elapsed, awake
+
+
 def source_key(url, version):
     parts = urlsplit(url)
     if parts.scheme != 'https' or not parts.hostname or parts.username or parts.password:
@@ -164,16 +185,23 @@ def run_provider(directory, config, prompt):
             '--disable', 'shell_tool', '--disable', 'unified_exec', '--disable', 'skill_mcp_dependency_install',
             '--cd', str(directory), '--output-schema', str(ASSETS / 'schema.json'),
             '--output-last-message', str(directory / 'result.json'), '-']
+    if sys.platform == 'darwin':
+        args = ['/usr/bin/caffeinate', '-i', *args]
     (directory / 'prompt.txt').write_text(prompt)
-    with (directory / 'events.jsonl').open('w') as output, (directory / 'stderr.log').open('w') as err:
-        proc = subprocess.Popen(args, stdin=subprocess.PIPE, stdout=output, stderr=err,
+    with (directory / 'prompt.txt').open() as input_file, \
+            (directory / 'events.jsonl').open('w') as output, (directory / 'stderr.log').open('w') as err:
+        started, awake_started = clocks()
+        proc = subprocess.Popen(args, stdin=input_file, stdout=output, stderr=err,
                                 text=True, start_new_session=True)
         try:
-            proc.stdin.write(prompt)
-            proc.stdin.close()
-            deadline = time.monotonic() + config.get('timeout_seconds', 900)
-            while proc.poll() is None:
-                if time.monotonic() > deadline:
+            while True:
+                elapsed, awake = clocks()
+                # Separate clock reads can straddle a scheduling pause; ignore differences below five seconds.
+                if (elapsed - started) - (awake - awake_started) > 5:
+                    raise RuntimeError('Research interrupted by Mac sleep; retry while the Mac is awake')
+                if proc.poll() is not None:
+                    break
+                if elapsed - started > config.get('timeout_seconds', 900):
                     raise RuntimeError('Research exceeded its time limit; reduce scan depth or retry manually')
                 events = events_from(directory / 'events.jsonl')
                 web_calls = sum(e.get('type') == 'item.completed' and e.get('item', {}).get('type') == 'web_search' for e in events)
@@ -232,6 +260,8 @@ def scan(root, config, force=False, now=None):
                            if date(r['started_at']) > now - timedelta(days=7)]
         if not force and len(recent_attempts) >= 2:
             return {'skipped': 'Two scans already attempted in seven days; retry manually if needed'}
+        if not mac_awake():
+            return {'skipped': 'Mac is in a maintenance wake; waiting for a full wake before research'}
         run_id = str(uuid.uuid4())
         directory = root / 'runs' / run_id
         directory.mkdir(parents=True)

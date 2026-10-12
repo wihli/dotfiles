@@ -19,4 +19,6 @@ The command's current automated provider is Codex with web search. Calling the c
 
 To change schedule or scan depth, edit the source-owned configuration and reinstall it. `weekday` uses Monday=0 through Sunday=6. The default is Friday at 09:00 in America/Los_Angeles. The weekly due check catches up once after downtime. `enabled: false` pauses paid scans. Preserve existing approved schedules unless asked to change them.
 
-Automatic retries are limited to two attempts in any seven-day window. Partial scans retain the last complete timestamp and become eligible for a retry after 24 hours. `max_web_calls` is an observed-call cutoff; in-flight calls can exceed it. Each run has a hard process timeout.
+On macOS, defer scans during maintenance wakes until the Mac fully wakes. A deferred check consumes no attempt. During research, `caffeinate -i` prevents idle system sleep. Sleep interruptions longer than five seconds stop the provider and record a failed scan; preserve the last report and apply the existing retry limits.
+
+Automatic scans allow at most two attempts in any seven-day window, counting successful and manual scans. Partial scans retain the last complete timestamp and become eligible for a retry after 24 hours. `max_web_calls` is an observed-call cutoff; in-flight calls can exceed it. Each run has a hard process timeout.

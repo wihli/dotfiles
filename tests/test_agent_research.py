@@ -3,6 +3,7 @@ import json
 import tempfile
 import os
 import subprocess
+import signal
 import sys
 import time
 import unittest
@@ -29,6 +30,126 @@ def result():
 
 
 class ResearchTests(unittest.TestCase):
+    def test_full_wake_and_non_mac_scans_can_start(self):
+        for platform in ('darwin', 'linux'):
+            with self.subTest(platform=platform), tempfile.TemporaryDirectory() as tmp:
+                power = subprocess.CompletedProcess([], 0, 'Current System Capabilities are: CPU Graphics Audio Network\n')
+                with patch.object(m.sys, 'platform', platform), \
+                        patch.object(m.subprocess, 'run', return_value=power) as read_power, \
+                        patch.object(m, 'run_provider', return_value=(result(), [])) as provider:
+                    m.scan(Path(tmp), m.DEFAULTS | {'brief_text': 'Test'}, now=NOW)
+                self.assertEqual(provider.call_count, 1)
+                self.assertEqual(read_power.call_count, int(platform == 'darwin'))
+
+    def test_maintenance_wake_defers_without_spending_an_attempt(self):
+        for force in (False, True):
+            with self.subTest(force=force), tempfile.TemporaryDirectory() as tmp:
+                root = Path(tmp)
+                prior = {'status': 'failed', 'last_report': {'summary': 'Keep me'}}
+                m.atomic_json(root/'state.json', prior)
+                power = subprocess.CompletedProcess([], 0, 'Current System Capabilities are: CPU Network\n')
+                with patch.object(m.sys, 'platform', 'darwin'), \
+                        patch.object(m.subprocess, 'run', return_value=power), \
+                        patch.object(m, 'run_provider', return_value=(result(), [])) as provider:
+                    output = m.scan(root, m.DEFAULTS | {'brief_text': 'Test'}, force=force, now=NOW)
+                provider.assert_not_called()
+                self.assertIn('Mac', output['skipped'])
+                self.assertEqual(json.loads((root/'state.json').read_text()), prior)
+                self.assertFalse((root/'runs').exists())
+
+    def test_unreadable_power_state_fails_before_starting_research(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            power = subprocess.CompletedProcess([], 0, 'Internal error: missing capabilities\n')
+            with patch.object(m.sys, 'platform', 'darwin'), \
+                    patch.object(m.subprocess, 'run', return_value=power), \
+                    patch.object(m, 'run_provider', return_value=(result(), [])) as provider:
+                with self.assertRaisesRegex(RuntimeError, 'power state'):
+                    m.scan(root, m.DEFAULTS | {'brief_text': 'Test'}, now=NOW)
+            provider.assert_not_called()
+            self.assertFalse((root/'runs').exists())
+
+    def test_power_probe_timeout_is_explicit(self):
+        with patch.object(m.sys, 'platform', 'darwin'), \
+                patch.object(m.subprocess, 'run', side_effect=subprocess.TimeoutExpired('pmset', 5)):
+            with self.assertRaisesRegex(RuntimeError, 'power state.*pmset'):
+                m.mac_awake()
+
+    def test_sleep_interrupts_even_a_provider_that_finishes_during_sleep(self):
+        # A stopped uptime clock must not turn a suspended scan into a timeout or a published result.
+        for exit_code in (None, 0):
+            with self.subTest(exit_code=exit_code), tempfile.TemporaryDirectory() as tmp:
+                with patch.object(m.sys, 'platform', 'darwin'), \
+                        patch.object(m, 'clocks', side_effect=[(0, 0), (120, 1)]), \
+                        patch.object(m.time, 'monotonic', side_effect=[0, 901]), \
+                        patch.object(m.subprocess, 'Popen') as launch, \
+                        patch.object(m.os, 'killpg') as stop:
+                    proc = launch.return_value
+                    proc.pid = 4242
+                    proc.poll.return_value = exit_code
+                    proc.returncode = exit_code
+                    if exit_code == 0:
+                        (Path(tmp)/'result.json').write_text('{}')
+                        def completed():
+                            (Path(tmp)/'events.jsonl').write_text(json.dumps(
+                                {'type': 'item.completed', 'item': {'type': 'web_search'}}) + '\n')
+                            return 0
+                        proc.poll.side_effect = completed
+                    with self.assertRaisesRegex(RuntimeError, 'Mac sleep'):
+                        m.run_provider(Path(tmp), m.DEFAULTS, 'Test')
+                    self.assertEqual(launch.call_args.args[0][:2], ['/usr/bin/caffeinate', '-i'])
+                    if exit_code is None:
+                        stop.assert_called_once_with(4242, signal.SIGTERM)
+                        proc.wait.assert_called_once_with(timeout=5)
+                    else:
+                        stop.assert_not_called()
+
+    def test_awake_timeout_remains_a_timeout_and_stops_provider(self):
+        with tempfile.TemporaryDirectory() as tmp, \
+                patch.object(m, 'clocks', side_effect=[(0, 0), (901, 901)]), \
+                patch.object(m.subprocess, 'Popen') as launch, patch.object(m.os, 'killpg') as stop:
+            proc = launch.return_value
+            proc.pid = 4242
+            proc.poll.return_value = None
+            with self.assertRaisesRegex(RuntimeError, 'time limit'):
+                m.run_provider(Path(tmp), m.DEFAULTS, 'Test')
+            stop.assert_called_once_with(4242, signal.SIGTERM)
+
+    @unittest.skipUnless(sys.platform == 'darwin', 'macOS power assertions')
+    def test_mac_provider_holds_and_releases_real_idle_sleep_assertion(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            fake = root/'fake-codex'
+            fake.write_text('#!' + sys.executable + '\n' + '''import json, os, re, subprocess, sys, time
+from pathlib import Path
+root = Path(sys.argv[sys.argv.index('--cd') + 1])
+for _ in range(100):
+    assertions = subprocess.run(['/usr/bin/pmset', '-g', 'assertions'], check=True, capture_output=True, text=True).stdout
+    match = re.search(r'pid (\\d+)\\(caffeinate\\):[^\\n]*PreventUserIdleSystemSleep[^\\n]*\\n\\s*Details:[^\\n]*\\(pid ' + str(os.getpid()) + r'\\)', assertions)
+    if match:
+        (root/'guard.pid').write_text(match[1])
+        break
+    time.sleep(0.01)
+else:
+    raise RuntimeError('No idle-sleep assertion for fake provider')
+(root/'result.json').write_text('{}')
+print(json.dumps({'type': 'item.completed', 'item': {'type': 'web_search'}}))
+''')
+            fake.chmod(0o755)
+            data, events = m.run_provider(root, m.DEFAULTS | {'codex': str(fake), 'timeout_seconds': 10}, 'Test')
+            self.assertEqual(data, {})
+            self.assertEqual(len(events), 1)
+            guard = int((root/'guard.pid').read_text())
+            deadline = time.monotonic() + 2
+            while time.monotonic() < deadline:
+                try:
+                    os.kill(guard, 0)
+                except ProcessLookupError:
+                    break
+                time.sleep(0.01)
+            else:
+                self.fail('Sleep assertion process survived the completed provider')
+
     def test_next_due_is_friday_local_time_across_dst(self):
         self.assertEqual(m.next_due(NOW, 'America/Los_Angeles', 4, 9), '2026-09-18T16:00:00Z')
         after = datetime(2026, 10, 30, 17, tzinfo=timezone.utc)
@@ -198,7 +319,7 @@ class ResearchTests(unittest.TestCase):
     def test_automatic_retry_budget_prevents_repeated_paid_failures(self):
         with tempfile.TemporaryDirectory() as tmp:
             root=Path(tmp)
-            m.atomic_json(root/'state.json', {'recent_runs':[{'started_at':'2026-09-10T17:00:00Z'}, {'started_at':'2026-09-09T17:00:00Z'}]})
+            m.atomic_json(root/'state.json', {'recent_runs':[{'started_at':'2026-09-10T17:00:00Z', 'status':'failed'}, {'started_at':'2026-09-09T17:00:00Z', 'status':'succeeded'}]})
             with patch.object(m,'run_provider') as provider:
                 output=m.scan(root,{},now=NOW)
             provider.assert_not_called()
