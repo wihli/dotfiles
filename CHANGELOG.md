@@ -4,6 +4,10 @@ This file records agent assets (skills, subagents) that were removed, and why. U
 
 To restore a removed asset, find the commit that deleted it with `git log --diff-filter=D --oneline -- <path>`. Then run `git checkout <commit>^ -- <path>` and `./install.sh`.
 
+## 2026-10-14: Retired deliberate-review
+
+Removed the `deliberate-review` skill, its CLI adapter, and its dedicated tests. The skill opened and supervised persistent Deliberate PR reviews. Eric retired this workflow after the usage audit found no skill loads from September 14 through October 13. THABTO and the background PR review loop cover the active review workflows.
+
 ## 2026-10-07: Removed unused skills and subagents
 
 A usage audit read the Claude Code transcripts (from 2026-08-13) and the Codex transcripts (from 2026-08-08). No session in that period loaded the assets below. Every installed skill and subagent puts its description into the context of each session, so an unused asset costs tokens and gives nothing back.
