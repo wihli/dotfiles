@@ -40,6 +40,7 @@ check() {
 
 echo "auth-check:"
 check github   gh          "gh auth status"                 "gh auth login"
+check buildkite bk         "bk auth status"                 "bk auth login --scopes read_only"
 check gcloud   gcloud      "[ -n \"\$(gcloud auth list --filter=status:ACTIVE --format='value(account)' 2>/dev/null)\" ]" "gcloud auth login"
 check jira     acli        "acli jira auth status"          "acli jira auth login"
 check datadog  pup         "pup auth status"                "pup auth login --ro"
