@@ -249,6 +249,65 @@ if [ -d "$PRIVATE_DOTFILES" ]; then
         cp "$PRIVATE_CODEX_RULES" "$HOME/.codex/rules/default.rules"
     fi
 
+    # Keep local skill choices in source without replacing the user's other settings.
+    PRIVATE_CODEX_SKILLS="$PRIVATE_DOTFILES/codex/skill-preferences.toml"
+    if [ -f "$PRIVATE_CODEX_SKILLS" ]; then
+        echo "Installing Codex skill preferences..."
+        python3 - "$PRIVATE_CODEX_SKILLS" "$HOME/.codex/config.toml" <<'PY_CODEX_SKILLS'
+from pathlib import Path
+import os
+import stat
+import sys
+import tempfile
+import tomllib
+
+source, target = map(Path, sys.argv[1:])
+prefs = tomllib.loads(source.read_text())
+if set(prefs) - {"skills"} or set(prefs.get("skills", {})) - {"config"}:
+    raise ValueError(f"{source}: only [[skills.config]] entries are supported")
+entries = prefs.get("skills", {}).get("config", [])
+if not isinstance(entries, list):
+    raise ValueError(f"{source}: use [[skills.config]] for each skill")
+for entry in entries:
+    selectors = set(entry) & {"name", "path"}
+    if len(selectors) != 1 or set(entry) != selectors | {"enabled"}:
+        raise ValueError(f"{source}: each skill needs one name or path and enabled")
+    if type(entry["enabled"]) is not bool or not isinstance(entry[next(iter(selectors))], str) or not entry[next(iter(selectors))].strip():
+        raise ValueError(f"{source}: use a non-empty selector and boolean enabled")
+if target.is_symlink():
+    raise ValueError(f"{target} is a symlink; manage skill preferences in its source")
+begin = "# BEGIN wihli-dotfiles skill preferences"
+end = "# END wihli-dotfiles skill preferences"
+original = target.read_text() if target.exists() else ""
+if (original.count(begin), original.count(end)) not in ((0, 0), (1, 1)):
+    raise ValueError(f"{target}: repair the incomplete or repeated skill preference block")
+block = begin + "\n" + source.read_text().rstrip() + "\n" + end + "\n"
+if begin in original:
+    start, stop = original.index(begin), original.index(end) + len(end)
+    if stop < start:
+        raise ValueError(f"{target}: skill preference block markers are reversed")
+    stop += int(original[stop:stop + 1] == "\n")
+    merged = original[:start] + block + original[stop:]
+else:
+    merged = original + ("\n" if original.endswith("\n") else "\n\n") + block
+tomllib.loads(merged)
+if merged == original:
+    sys.exit(0)
+target.parent.mkdir(parents=True, exist_ok=True)
+with tempfile.NamedTemporaryFile(mode="w", dir=target.parent, delete=False) as stream:
+    pending = Path(stream.name)
+    stream.write(merged)
+try:
+    if (target.read_text() if target.exists() else "") != original:
+        raise RuntimeError(f"{target} changed during install; rerun to preserve the edit")
+    if target.exists():
+        pending.chmod(stat.S_IMODE(target.stat().st_mode))
+    os.replace(pending, target)
+finally:
+    pending.unlink(missing_ok=True)
+PY_CODEX_SKILLS
+    fi
+
     # Merge private Codex hook groups into the public hooks file without
     # replacing unrelated public hook groups.
     PRIVATE_CODEX_HOOKS="$PRIVATE_DOTFILES/codex/.codex/hooks-private.json"

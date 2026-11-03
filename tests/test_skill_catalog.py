@@ -9,7 +9,10 @@ SUBAGENT_ROOT = REPO_ROOT / "subagents/.local/share/subagents"
 
 class SkillCatalogTests(unittest.TestCase):
     def test_retired_workflow_skills_are_not_advertised(self) -> None:
-        for name in ("investigate-readonly", "log-analyze", "multi-mind", "research"):
+        for name in (
+            "investigate-readonly", "log-analyze", "multi-mind", "research",
+            "finalize", "next",
+        ):
             with self.subTest(name=name):
                 self.assertFalse((SKILL_ROOT / name / "SKILL.md").exists())
 
@@ -21,15 +24,24 @@ class SkillCatalogTests(unittest.TestCase):
         self.assertIn("XDG_STATE_HOME", reference)
         self.assertNotIn("~/.claude", reference)
 
-    def test_review_agent_uses_non_skill_checklist_reference(self) -> None:
-        reviewer = (
-            REPO_ROOT / "subagents/.local/share/subagents/code-reviewer.md"
-        ).read_text()
-
-        self.assertIn(
-            "~/.local/share/agent-references/review-checklists.md", reviewer
+    def test_review_procedure_is_reachable_from_global_and_role(self) -> None:
+        reference = (
+            REPO_ROOT / "agents/.local/share/agent-references/code-review.md"
         )
-        self.assertNotIn("skills/review-checklists/SKILL.md", reviewer)
+        self.assertTrue(reference.is_file())
+        for entrypoint in (
+            REPO_ROOT / "agents/.config/AGENTS.md",
+            SUBAGENT_ROOT / "code-reviewer.md",
+        ):
+            with self.subTest(entrypoint=entrypoint):
+                self.assertIn(
+                    "~/.local/share/agent-references/code-review.md",
+                    entrypoint.read_text(),
+                )
+        self.assertIn(
+            "~/.local/share/agent-references/review-checklists.md",
+            reference.read_text(),
+        )
 
     def test_north_star_does_not_reference_retired_research_skill(self) -> None:
         north_star = (SKILL_ROOT / "north-star/SKILL.md").read_text()
@@ -47,7 +59,7 @@ class SkillCatalogTests(unittest.TestCase):
         # definitions do not expect.
         self.assertIn('fork_turns="none"', skill)
         # The roster must not be hardcoded here; it drifts every time an agent is added.
-        for agent in ("code-reviewer", "logalyzer", "pr-reviewer"):
+        for agent in ("code-reviewer", "logalyzer"):
             with self.subTest(agent=agent):
                 self.assertNotIn(agent, skill)
 

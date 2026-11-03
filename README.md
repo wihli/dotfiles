@@ -56,6 +56,12 @@ Claude, Codex, and Pi expect.
 Pi and OpenCode discover those same shared skills through the shared Agent Skills
 path at `~/.agents/skills/`.
 
+Private Codex skill choices live in `codex/skill-preferences.toml`. The installer
+uses Python 3.11 or newer to validate these choices and replace its marked section
+in `~/.codex/config.toml`, preserving other settings. Set a skill entry to
+`enabled = true` or remove it from the source to end an exclusion, then reinstall
+and start a fresh Codex session. Synced skill files stay owned by their provider.
+
 Skill directories and supporting files keep the Stow-managed overlay layout.
 After both overlays are installed, `install.sh` replaces only dotfiles-owned
 `SKILL.md` links with generated regular files so Codex can discover them. An

@@ -4,6 +4,14 @@ This file records agent assets (skills, subagents) that were removed, and why. U
 
 To restore a removed asset, find the commit that deleted it with `git log --diff-filter=D --oneline -- <path>`. Then run `git checkout <commit>^ -- <path>` and `./install.sh`.
 
+## 2026-11-03: Trial removal of generic completion and pickup skills
+
+Removed `skills/.local/share/skills/finalize/` and `skills/.local/share/skills/next/` as a reversible trial. Both wrapped ordinary agent work. Finalize also prescribed staging every change, and next prescribed checks and planning-document edits for status questions. The audit found frequent loads, but did not establish that either skill improved outcomes.
+
+Keep normal completion and resumption work in the agent's task and repository instructions. Git history preserves both skills for restoration if the trial exposes a useful missing behavior.
+
+Narrowed `long-session` to explicitly requested Ralph-loop preparation, kept `north-star` explicitly selected, and changed `session-notes` to use existing project handoffs. Global instructions retain lasting preferences and constraints; task-specific writing and review procedures live in references.
+
 ## 2026-10-14: Retired deliberate-review
 
 Removed the `deliberate-review` skill, its CLI adapter, and its dedicated tests. The skill opened and supervised persistent Deliberate PR reviews. Eric retired this workflow after the usage audit found no skill loads from September 14 through October 13. THABTO and the background PR review loop cover the active review workflows.

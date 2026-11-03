@@ -21,6 +21,7 @@ The install flow stows the public repo first, then overlays private packages whe
 - Shared skills live under `skills/.local/share/skills/`
 - Shared subagents live under `subagents/.local/share/subagents/`
 - Private-only agent config, extensions, skills, and subagents live in the private repo
+- Private `codex/skill-preferences.toml` owns Codex skill overrides; the installer updates only its marked config block and validates TOML before writing
 - Installed home paths under `~/.config/`, `~/.local/share/`, `~/.claude/`, `~/.agents/`, `~/.codex/`, `~/.pi/agent/AGENTS.md`, and `~/.pi/agent/extensions/` are generated targets, not source-of-truth edit locations
 
 Keep shared behavior in the shared XDG-style locations above. Keep tool-specific behavior in the tool-specific package only.
