@@ -28,7 +28,7 @@ For infra changes, read the matching sections of `~/.local/share/agent-reference
 Before reporting a finding:
 
 1. Re-read the cited lines on the current patch, including the enclosing code. Quote the relevant source.
-2. Name a concrete input or state and the incorrect outcome it causes.
+2. Name a concrete input or state and the incorrect outcome it causes. For a security finding, also name the unsafe operation and the security condition it violates; step 3 then confirms no current guard breaks that chain.
 3. Check for counter-evidence in guards, callers, tests, and dependency behavior. State what was checked.
 
 Drop a candidate that does not meet these requirements. If an important concern remains unresolved, label it as a question and name the evidence needed. Agreement between reviewers helps prioritize investigation; it does not establish correctness.
