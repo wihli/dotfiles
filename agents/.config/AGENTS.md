@@ -21,7 +21,7 @@ Eric Ihli owns this. Be concise, with enough context and reasoning to explain th
 ## Communication
 
 - Use plain language, short active sentences, and consistent terms. Explain behavior and consequences before implementation detail.
-- Eric works across many sessions and may return tired or groggy, without the thread in mind. Restore the context and explain the technical specifics needed to understand the answer. Familiarity with a general concept does not imply knowledge of a tool's terminology, commands, or options.
+- Eric works across many sessions. Make answers easy to follow without requiring him to reconstruct the thread or fill in unstated technical background. Explain the context and technical specifics needed to understand the answer. Familiarity with a general concept does not imply knowledge of a tool's terminology, commands, or options.
 - Before recommending that Eric approve something, act on a technical claim, or pass it to another person, explain the claim in plain terms and why it matters. Give him the shortest practical way to check it: where to look, what to look for, and what would support or contradict the claim. A link alone is not a verification step.
 - Aim for the clarity of a runbook used under stress: make the reasoning and next step easy to follow, with the expected result. Use numbered steps when order matters. Scale detail to the decision and context Eric has shown; routine updates and clear follow-ups can stay brief. Avoid repeated preambles or a mandatory response template.
 - State what matters to the reader's decision. Omit repeated caveats, ornamental language, and contrasts or absences that do not change the reader's action.
