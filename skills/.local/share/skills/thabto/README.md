@@ -41,11 +41,11 @@ Each stage starts a fresh process for each participant. A failed or timed-out pa
 | Claude Code | Claude | Plan mode; tools limited to Read, Glob, Grep; no MCP servers |
 | Codex | OpenAI | Codex `read-only` sandbox; no MCP servers |
 | OpenCode | OpenAI only (`openai/…`) | `thabto-child` agent in `harness/opencode.json` |
-| Pi | OpenAI only (`openai-codex/…`) | Tools limited to read, grep, find, ls; offline; no extensions |
+| Pi | OpenAI (`openai-codex/…`) or Gemini through GitHub Copilot (`github-copilot/gemini-…`) | Tools limited to read, grep, find, ls; offline; no extensions |
 
 Claude runs only in Claude Code, because Anthropic's terms limit Claude subscription sign-in to Anthropic's own apps. The driver rejects a Claude model on OpenCode or Pi, and it removes Anthropic credentials from the environment of those harnesses.
 
-The default pair is `claude-opus-5-5` and `gpt-6-sol` at `high` effort. For a hard task, ask for the frontier pair (`fable` and `gpt-6-astra`). To run more than two participants, or to compare harnesses with the same model, ask for specific participants, for example "use thabto with codex, opencode, and pi on gpt-6-sol".
+The default pair is `claude-opus-5-5` and `gpt-6-sol` at `high` effort. For a hard task, ask for the frontier pair (`fable` and `gpt-6-astra`). To run more than two participants, or to compare harnesses with the same model, ask for specific participants, for example "use thabto with codex, opencode, and pi on gpt-6-sol". To add Gemini 4 Argon, ask for a Pi participant on `github-copilot/gemini-4-argon`; Pi must be signed in to GitHub Copilot.
 
 ## Read the scoreboard
 

@@ -333,8 +333,24 @@ class ThabtoTests(unittest.TestCase):
                 self.assertEqual(len(metadata["final_answers"]), 2)
                 self.assertNotIn(name, metadata["final_answers"])
 
-    def test_opencode_and_pi_accept_openai_models_only(self):
-        for spec in ("opencode:anthropic/claude-opus-5-5", "pi:anthropic/claude-opus-5-5", "pi:gpt-6-sol"):
+    def test_pi_runs_gemini_through_github_copilot(self):
+        command = [sys.executable, str(DRIVER), "--task-file", str(self.task), "--workspace", str(self.workspace),
+                   "--timeout", "30", "--seed", "3",
+                   "--participant", "codex:test-codex", "--participant", "pi:github-copilot/gemini-4-argon",
+                   "--codex-executable", str(self.root / "codex fake"), "--pi-executable", str(self.root / "pi fake")]
+        result = subprocess.run(command, env=self.env, text=True, capture_output=True, timeout=90)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        run, metadata = self.latest_metadata()
+        pi = json.loads((run / "attempt/pi/stderr.log").read_text())
+        self.assertEqual(pi["args"][pi["args"].index("--model") + 1], "github-copilot/gemini-4-argon:high")
+        self.assertEqual(pi["args"][pi["args"].index("--tools") + 1], "read,grep,find,ls")
+        self.assertFalse(pi["claude_token"])
+        self.assertEqual(set(metadata["final_answers"]), {"codex", "pi"})
+
+    def test_opencode_and_pi_accept_only_authorized_models(self):
+        for spec in ("opencode:anthropic/claude-opus-5-5", "opencode:github-copilot/gemini-4-argon",
+                     "pi:anthropic/claude-opus-5-5", "pi:gpt-6-sol", "pi:github-copilot/claude-opus-5-5",
+                     "pi:google/gemini-4-argon"):
             with self.subTest(spec=spec):
                 command = [sys.executable, str(DRIVER), "--task-file", str(self.task), "--workspace", str(self.workspace),
                            "--participant", "codex:test-codex", "--participant", spec,
@@ -343,7 +359,7 @@ class ThabtoTests(unittest.TestCase):
                            "--pi-executable", str(self.root / "pi fake")]
                 result = subprocess.run(command, env=self.env, text=True, capture_output=True, timeout=30)
                 self.assertNotEqual(result.returncode, 0)
-                self.assertIn("OpenAI models only", result.stderr)
+                self.assertIn("accepts only", result.stderr)
                 self.assertFalse((self.root / "state/thabto").exists())
 
     def test_participant_spec_errors_are_explicit(self):

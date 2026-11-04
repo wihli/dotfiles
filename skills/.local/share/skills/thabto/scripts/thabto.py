@@ -136,7 +136,9 @@ SKILL_DIR = Path(__file__).resolve().parent.parent
 # executable), how to build its read-only command, how to read its final answer, which
 # credentials to withhold, extra environment, and which model ids it may run.
 # Only Claude Code may carry Claude: Anthropic limits Claude subscription sign-in to its
-# own apps, so OpenCode and Pi run OpenAI models only and never see Anthropic credentials.
+# own apps, so OpenCode and Pi never see Anthropic credentials. The model prefixes match
+# the destinations the THABTO authorization names: OpenCode runs OpenAI models; Pi runs
+# OpenAI models or Gemini models through GitHub Copilot.
 HARNESSES = {
     "claude-code": {"short": "claude", "flag": "claude", "command": claude_command, "answer": claude_answer,
                     "strip_env": (), "env": {}, "model_prefixes": ()},
@@ -146,7 +148,7 @@ HARNESSES = {
                  "strip_env": ANTHROPIC_ENV, "env": {"OPENCODE_CONFIG": str(SKILL_DIR / "harness/opencode.json")},
                  "model_prefixes": ("openai/",)},
     "pi": {"short": "pi", "flag": "pi", "command": pi_command, "answer": pi_answer,
-           "strip_env": ANTHROPIC_ENV, "env": {}, "model_prefixes": ("openai-codex/",)},
+           "strip_env": ANTHROPIC_ENV, "env": {}, "model_prefixes": ("openai-codex/", "github-copilot/gemini-")},
 }
 
 
@@ -362,8 +364,9 @@ def parse_participants(parser, args):
     for harness, model, effort in specs:
         prefixes = HARNESSES[harness]["model_prefixes"]
         if prefixes and not model.startswith(prefixes):
-            parser.error(f"{harness} runs OpenAI models only in THABTO (for example {prefixes[0]}gpt-6-sol); "
-                         f"got {model!r}. Claude participates through claude-code.")
+            allowed = " or ".join(f"{prefix}…" for prefix in prefixes)
+            parser.error(f"{harness} accepts only {allowed} models in THABTO; got {model!r}. "
+                         "Claude participates through claude-code.")
         short = HARNESSES[harness]["short"]
         counts[short] = counts.get(short, 0) + 1
         name = short if counts[short] == 1 else f"{short}-{counts[short]}"
