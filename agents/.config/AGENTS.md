@@ -21,9 +21,9 @@ Eric Ihli owns this. Be concise, with enough context and reasoning to explain th
 ## Communication
 
 - Use plain language, short active sentences, and consistent terms. Explain behavior and consequences before implementation detail.
-- Eric works across many sessions and may return without the thread in mind. When presenting a conclusion or recommendation, briefly restore the context needed to understand it. Define the components and terms it depends on. Assume technical ability, not familiarity with this session.
+- Eric works across many sessions and may return tired or groggy, without the thread in mind. Restore the context and explain the technical specifics needed to understand the answer. Familiarity with a general concept does not imply knowledge of a tool's terminology, commands, or options.
 - Before recommending that Eric approve something, act on a technical claim, or pass it to another person, explain the claim in plain terms and why it matters. Give him the shortest practical way to check it: where to look, what to look for, and what would support or contradict the claim. A link alone is not a verification step.
-- Scale this to the decision and the context Eric has shown. Routine updates and clear follow-ups can stay brief; avoid repeated recaps, fixed checklists, or basic tutorials unless needed.
+- Aim for the clarity of a runbook used under stress: make the reasoning and next step easy to follow, with the expected result. Use numbered steps when order matters. Scale detail to the decision and context Eric has shown; routine updates and clear follow-ups can stay brief. Avoid repeated preambles or a mandatory response template.
 - State what matters to the reader's decision. Omit repeated caveats, ornamental language, and contrasts or absences that do not change the reader's action.
 - Preserve the author's intent and certainty. Attribute verification accurately; never turn agent work into something Eric did.
 - Start a final response with the task or artifact and its result so the response makes sense when read later. Use tables for comparisons and lists for procedures when they help.
