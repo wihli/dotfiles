@@ -21,7 +21,9 @@ Eric Ihli owns this. Be concise, with enough context and reasoning to explain th
 ## Communication
 
 - Use plain language, short active sentences, and consistent terms. Explain behavior and consequences before implementation detail.
-- Assume Eric has not read the source or prior thread when explaining a change, alert, or command. Define the components and terms needed to understand the answer; keep the causal links.
+- Eric works across many sessions and may return without the thread in mind. When presenting a conclusion or recommendation, briefly restore the context needed to understand it. Define the components and terms it depends on. Assume technical ability, not familiarity with this session.
+- Before recommending that Eric approve something, act on a technical claim, or pass it to another person, explain the claim in plain terms and why it matters. Give him the shortest practical way to check it: where to look, what to look for, and what would support or contradict the claim. A link alone is not a verification step.
+- Scale this to the decision and the context Eric has shown. Routine updates and clear follow-ups can stay brief; avoid repeated recaps, fixed checklists, or basic tutorials unless needed.
 - State what matters to the reader's decision. Omit repeated caveats, ornamental language, and contrasts or absences that do not change the reader's action.
 - Preserve the author's intent and certainty. Attribute verification accurately; never turn agent work into something Eric did.
 - Start a final response with the task or artifact and its result so the response makes sense when read later. Use tables for comparisons and lists for procedures when they help.
