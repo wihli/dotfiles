@@ -1,17 +1,30 @@
 #!/usr/bin/env bash
 
-# Notify that an interactive agent is waiting, and mark the current tmux pane.
-# Keep stdout empty: Codex and Claude hooks may parse hook stdout.
+# Mark the current tmux pane when an interactive agent is waiting, and send a
+# ready banner only when the session is not on screen. Keep stdout empty: Codex
+# and Claude hooks may parse hook stdout.
+#
+# Banner policy:
+#   - AGENT_NOTIFY_READY=off in the session's environment: never banner
+#     (autonomous sessions such as background agents set this).
+#   - `agent-notify-ready --mute` / `--unmute` from inside a running session:
+#     the same switch for one tmux pane without relaunching it.
+#   - Otherwise banner unless the session is on screen: its terminal app is
+#     frontmost and, inside tmux, its pane is the active pane of the active
+#     window of an attached session. When that cannot be determined, banner.
+# The tmux title marker is applied in every case so the pane still shows READY.
 
 set +e
 
 mode="ready"
-if [ "${1:-}" = "--clear" ]; then
-    mode="clear"
-    shift
-fi
+case "${1:-}" in
+    --clear) mode="clear"; shift ;;
+    --mute) mode="mute"; shift ;;
+    --unmute) mode="unmute"; shift ;;
+esac
 
 agent="${1:-Agent}"
+ready_setting="${AGENT_NOTIFY_READY:-on}"
 state_home="${XDG_STATE_HOME:-$HOME/.local/state}"
 state_dir="$state_home/agent-notify-ready"
 hook_input=""
@@ -301,6 +314,77 @@ terminal_bundle() {
     esac
 }
 
+# The frontmost app's bundle identifier. lsappinfo needs no automation
+# permission, unlike System Events through osascript.
+frontmost_bundle() {
+    local asn
+    command -v lsappinfo >/dev/null 2>&1 || return 1
+    asn=$(lsappinfo front 2>/dev/null) || return 1
+    [ -n "$asn" ] || return 1
+    lsappinfo info -only bundleid "$asn" 2>/dev/null \
+        | sed -n 's/.*"CFBundleIdentifier"="\([^"]*\)".*/\1/p' | head -n 1
+}
+
+# Succeeds when the session is on screen: its terminal app is frontmost and,
+# inside tmux, its pane is the active pane of the active window of an attached
+# session. Any unknown state fails so the banner still fires.
+session_on_screen() {
+    local terminal front visibility
+    terminal=$(terminal_bundle 2>/dev/null) || return 1
+    [ -n "$terminal" ] || return 1
+    front=$(frontmost_bundle) || return 1
+    [ -n "$front" ] || return 1
+    [ "$front" = "$terminal" ] || return 1
+    if tmux_target >/dev/null 2>&1; then
+        # pane_active and window_active are 0 or 1; session_attached is a count.
+        visibility=$(tmux_display '#{pane_active}#{window_active}#{session_attached}')
+        case "$visibility" in
+            11[1-9]*) return 0 ;;
+            *) return 1 ;;
+        esac
+    fi
+    return 0
+}
+
+mute_marker() {
+    local key
+    key=$(tmux_key) || return 1
+    printf '%s' "$state_dir/$key.muted"
+}
+
+set_mute() {
+    local marker target
+    target=$(tmux_target 2>/dev/null)
+    marker=$(mute_marker) || {
+        log_event "$1-no-tmux" "" ""
+        return 0
+    }
+    mkdir -p "$state_dir" 2>/dev/null || return 0
+    if [ "$1" = "mute" ]; then
+        : > "$marker" 2>/dev/null || true
+    else
+        rm -f "$marker" 2>/dev/null || true
+    fi
+    log_event "$1" "$target" ""
+}
+
+# Prints the reason and succeeds when the ready banner must not be sent.
+banner_suppressed() {
+    local marker
+    case "$ready_setting" in
+        off|0|false|no) printf 'env'; return 0 ;;
+    esac
+    marker=$(mute_marker 2>/dev/null) && [ -f "$marker" ] && {
+        printf 'muted'
+        return 0
+    }
+    if session_on_screen; then
+        printf 'on-screen'
+        return 0
+    fi
+    return 1
+}
+
 notification_message() {
     local cwd_name tmux_label
     cwd_name=$(basename "$PWD" 2>/dev/null)
@@ -353,9 +437,17 @@ case "$mode" in
             clear_tmux_ready
         fi
         ;;
+    mute|unmute)
+        set_mute "$mode"
+        ;;
     *)
         mark_tmux_ready
-        notify_ready
+        if reason=$(banner_suppressed); then
+            log_event "notify-skip" "$(tmux_target 2>/dev/null)" "$reason"
+        else
+            log_event "notify" "$(tmux_target 2>/dev/null)" ""
+            notify_ready
+        fi
         ;;
 esac
 
