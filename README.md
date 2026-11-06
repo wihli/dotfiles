@@ -49,6 +49,9 @@ Pi reads the generated `~/.pi/agent/AGENTS.md` link.
 Private Pi extensions under `~/.pi/agent/extensions/` are managed the same way.
 Do not edit these installed paths.
 
+Agent status and permission requests stay in the terminal. The shared configuration
+does not install desktop notification hooks or delayed tmux pane-title updates.
+
 `install.sh` stows the public repo first, overlays the private repo second,
 merges private Claude settings and Codex hook fragments into their public base
 files, stows private Pi extensions, then links shared agent assets into the paths

@@ -4,6 +4,12 @@ This file records agent assets (skills, subagents) that were removed, and why. U
 
 To restore a removed asset, find the commit that deleted it with `git log --diff-filter=D --oneline -- <path>`. Then run `git checkout <commit>^ -- <path>` and `./install.sh`.
 
+## 2026-11-06: Retire agent desktop notifications and delayed pane titles
+
+Removed `agent-notify-ready`, its dedicated tests, its Claude and Codex Stop/UserPromptSubmit hooks, and Claude's desktop Notification hook. Routine ready/idle banners and sounds were not useful. Concurrent background workers also raced on shared pane state, making delayed title jobs fail and repeatedly open tmux's message viewer.
+
+Agent status and permission requests remain in the terminal. Keep the existing permission guards and Codex recap hook. Reinstall with `./install.sh`; it removes the retired helper's stale symlink, so cached ready-hook commands in running sessions become harmless.
+
 ## 2026-11-03: Trial removal of generic completion and pickup skills
 
 Removed `skills/.local/share/skills/finalize/` and `skills/.local/share/skills/next/` as a reversible trial. Both wrapped ordinary agent work. Finalize also prescribed staging every change, and next prescribed checks and planning-document edits for status questions. The audit found frequent loads, but did not establish that either skill improved outcomes.
