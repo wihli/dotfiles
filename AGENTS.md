@@ -17,12 +17,12 @@ The install flow stows the public repo first, then overlays private packages whe
 - Shared helper commands live under `bin/.local/bin/`
 - Claude-specific runtime config lives under `claude/.claude/`
 - Codex-specific runtime hooks live under `codex/.codex/`
-- Pi-specific global extensions live under the private repo's `pi/.pi/agent/extensions/`
+- Pi-specific user settings and global extensions live under the private repo's `pi/.pi/agent/`
 - Shared skills live under `skills/.local/share/skills/`
 - Shared subagents live under `subagents/.local/share/subagents/`
 - Private-only agent config, extensions, skills, and subagents live in the private repo
 - Private `codex/skill-preferences.toml` owns Codex skill overrides; the installer updates only its marked config block and validates TOML before writing
-- Installed home paths under `~/.config/`, `~/.local/share/`, `~/.claude/`, `~/.agents/`, `~/.codex/`, `~/.pi/agent/AGENTS.md`, and `~/.pi/agent/extensions/` are generated targets, not source-of-truth edit locations
+- Installed home paths under `~/.config/`, `~/.local/share/`, `~/.claude/`, `~/.agents/`, `~/.codex/`, `~/.pi/agent/AGENTS.md`, `~/.pi/agent/settings.json`, and `~/.pi/agent/extensions/` are generated targets, not source-of-truth edit locations
 
 Keep shared behavior in the shared XDG-style locations above. Keep tool-specific behavior in the tool-specific package only.
 

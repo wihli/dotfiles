@@ -36,7 +36,7 @@ The intended split is:
 - Shared helper commands: `bin/.local/bin/`
 - Claude-specific config: `claude/.claude/settings.json`
 - Codex-specific hooks: `codex/.codex/hooks.json`
-- Pi-specific global extensions: `$SRC_DIR/wihli-dotfiles-private/pi/.pi/agent/extensions/`
+- Pi-specific user settings and global extensions: `$SRC_DIR/wihli-dotfiles-private/pi/.pi/agent/`
 - Shared skills: `skills/.local/share/skills/`
 - Shared subagents: `subagents/.local/share/subagents/`
 - Private overlays: `$SRC_DIR/wihli-dotfiles-private/{claude,codex,pi,skills,subagents,...}`
@@ -46,7 +46,7 @@ Treat repo paths as the source of truth. Installed home paths such as
 `~/.claude/skills/`, `~/.claude/agents/`, `~/.agents/skills/`, and
 `~/.codex/skills/` are generated targets managed by `install.sh` and Stow.
 Pi reads the generated `~/.pi/agent/AGENTS.md` link.
-Private Pi extensions under `~/.pi/agent/extensions/` are managed the same way.
+Private Pi settings and extensions under `~/.pi/agent/` are managed the same way.
 Do not edit these installed paths.
 
 Agent status and permission requests stay in the terminal. The shared configuration

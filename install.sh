@@ -230,6 +230,16 @@ if [ ! -d "$PRIVATE_DOTFILES" ]; then
         echo "Skipping private dotfiles (no SSH access)"
 fi
 if [ -d "$PRIVATE_DOTFILES" ]; then
+    # Private Pi settings are source-managed alongside its extensions. Remove a
+    # pre-existing regular target only when that source exists, so Stow can
+    # create the link without discarding an unmanaged configuration otherwise.
+    PRIVATE_PI_SETTINGS="$PRIVATE_DOTFILES/pi/.pi/agent/settings.json"
+    PI_SETTINGS="$HOME/.pi/agent/settings.json"
+    if [ -f "$PRIVATE_PI_SETTINGS" ] && [ -f "$PI_SETTINGS" ] && [ ! -L "$PI_SETTINGS" ]; then
+        echo "Removing unmanaged Pi settings.json for re-stow..."
+        rm -f "$PI_SETTINGS"
+    fi
+
     echo "Stowing private dotfiles..."
     for pkg in claude agents skills subagents fish bin oncall pi; do
         [ -d "$PRIVATE_DOTFILES/$pkg" ] || continue

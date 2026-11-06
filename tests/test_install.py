@@ -32,6 +32,20 @@ class InstallScriptTests(unittest.TestCase):
 
         self.assertRegex(install_script, r"for pkg in [^\n]*\bpi\b[^\n]*; do")
 
+    def test_private_pi_settings_replace_only_an_unmanaged_target(self) -> None:
+        install_script = (REPO_ROOT / "install.sh").read_text()
+
+        self.assertIn(
+            'PRIVATE_PI_SETTINGS="$PRIVATE_DOTFILES/pi/.pi/agent/settings.json"',
+            install_script,
+        )
+        self.assertIn('PI_SETTINGS="$HOME/.pi/agent/settings.json"', install_script)
+        self.assertIn(
+            'if [ -f "$PRIVATE_PI_SETTINGS" ] && [ -f "$PI_SETTINGS" ] && [ ! -L "$PI_SETTINGS" ]; then',
+            install_script,
+        )
+        self.assertIn('rm -f "$PI_SETTINGS"', install_script)
+
     def test_install_script_has_valid_bash_syntax(self) -> None:
         result = subprocess.run(
             ["bash", "-n", str(REPO_ROOT / "install.sh")],
