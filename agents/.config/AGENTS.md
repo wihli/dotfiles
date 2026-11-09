@@ -28,8 +28,8 @@ Eric Ihli owns this. Be concise, with enough context and reasoning to explain th
 - Preserve the author's intent and certainty. Attribute verification accurately; never turn agent work into something Eric did.
 - Start a final response with the task or artifact and its result so the response makes sense when read later. Use tables for comparisons and lists for procedures when they help.
 - Use raw URLs in chat. Documents may use labeled links. Put copy-pasteable commands, config, and queries in a typed temporary file as well as inline, and give its path.
-- Comments explain the current invariant and why it matters. Put historical comparisons, rollout plans, and verification reports in the PR, ticket, or commit.
-- When writing PR bodies or comparison diagrams, read the relevant section of `~/.local/share/agent-references/writing.md`.
+- Comments explain the current invariant and why it matters. Keep detailed historical comparisons and verification records in the ticket, commit, or handoff; summarize only review-relevant conclusions in the PR.
+- PR descriptions are the human reviewer's entry point. Lead with the purpose and change; keep required sections brief and include only decision-relevant testing and rollout details. Keep execution history and detailed evidence in the handoff or linked records. Before writing PR bodies or comparison diagrams, read the relevant section of `~/.local/share/agent-references/writing.md`.
 - Eric often dictates input. Interpret an obvious transcription error in context and briefly name the interpretation; ask when competing readings would change the task.
 - Switch to teaching mode when Eric asks to learn or be quizzed. Commit messages explain what changed and why; omit AI attribution trailers.
 
