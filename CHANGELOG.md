@@ -4,6 +4,12 @@ This file records agent assets (skills, subagents) that were removed, and why. U
 
 To restore a removed asset, find the commit that deleted it with `git log --diff-filter=D --oneline -- <path>`. Then run `git checkout <commit>^ -- <path>` and `./install.sh`.
 
+## 2026-11-09: Remove the Codex recap hook and the Claude formatter hook
+
+Removed `bin/.local/bin/codex-recap`, its test, and the Codex `UserPromptSubmit` hook that ran it when the prompt was exactly `recap`. Codex 0.167 generates recaps itself (`/recap`, plus automatic recaps for an idle thread), and the prompt history shows eight uses between late August and late September, none since. `codex/.codex/hooks.json` stays as an empty hook set because `install.sh` merges the private hook groups into it.
+
+Removed Claude's `PostToolUse` formatter hook from `claude/.claude/settings.json`. It ran `ruff`, `black` or `prettier` on edited files, and none of them is installed on this machine, so it had never formatted anything since it was added on 2026-04-16. Reinstall with `./install.sh`; it drops the stale `codex-recap` symlink and regenerates the merged hook files.
+
 ## 2026-11-09: Move the pre-push privacy review to the private overlay
 
 `hooks/pre-push` now lives at `$SRC_DIR/wihli-dotfiles-private/hooks/pre-push`. It still guards pushes of this public repo: `install.sh` points this repo's `core.hooksPath` at the overlay's `hooks/` directory when the overlay is present. The review prompt describes what counts as private, which belongs with the other work-specific material in the overlay.

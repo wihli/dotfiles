@@ -74,19 +74,6 @@
     "defaultMode": "auto"
   },
   "model": "opus[1m]",
-  "hooks": {
-    "PostToolUse": [
-      {
-        "matcher": "Edit|Write",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "jq -r '.tool_input.file_path' | while read f; do case \"$f\" in *.py) ruff format --quiet \"$f\" 2>/dev/null || black --quiet \"$f\" 2>/dev/null ;; *.ts|*.tsx|*.js|*.jsx) prettier --write \"$f\" 2>/dev/null ;; esac; done; exit 0"
-          }
-        ]
-      }
-    ]
-  },
   "enabledPlugins": {},
   "effortLevel": "high",
   "skipDangerousModePermissionPrompt": true,

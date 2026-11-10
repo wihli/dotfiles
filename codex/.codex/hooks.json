@@ -1,16 +1,3 @@
 {
-  "hooks": {
-    "UserPromptSubmit": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "codex-recap --hook",
-            "statusMessage": "Generating recap with gpt-5.4-mini",
-            "timeout": 150
-          }
-        ]
-      }
-    ]
-  }
+  "hooks": {}
 }
