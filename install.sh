@@ -73,9 +73,6 @@ for legacy in ~/.claude/skills ~/.claude/agents; do
     fi
 done
 
-# Point this repo's hooks at the versioned hooks/ directory
-git -C "$(pwd)" config core.hooksPath hooks
-
 # Detect files that should be stow-managed symlinks but were written directly
 # into $HOME instead. This is the common cause of confusing stow conflicts for
 # shared agent assets.
@@ -228,6 +225,15 @@ if [ ! -d "$PRIVATE_DOTFILES" ]; then
     mkdir -p "$SRC_DIR"
     git clone git@github.com:wihli/dotfiles-private.git "$PRIVATE_DOTFILES" 2>/dev/null || \
         echo "Skipping private dotfiles (no SSH access)"
+fi
+
+# The pre-push privacy review for this public repo lives in the private
+# overlay. Point this repo's hooks there when the overlay is present, and drop
+# the legacy in-repo hooks path otherwise so no stale setting lingers.
+if [ -d "$PRIVATE_DOTFILES/hooks" ]; then
+    git -C "$(pwd)" config core.hooksPath "$PRIVATE_DOTFILES/hooks"
+elif [ "$(git -C "$(pwd)" config --get core.hooksPath)" = "hooks" ]; then
+    git -C "$(pwd)" config --unset core.hooksPath
 fi
 if [ -d "$PRIVATE_DOTFILES" ]; then
     # Private Pi settings are source-managed alongside its extensions. Remove a

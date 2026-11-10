@@ -56,6 +56,9 @@ does not install desktop notification hooks or delayed tmux pane-title updates.
 merges private Claude settings and Codex hook fragments into their public base
 files, stows private Pi extensions, then links shared agent assets into the paths
 Claude, Codex, and Pi expect.
+With the overlay present, it also points this repo's `core.hooksPath` at the
+overlay's `hooks/` directory, whose pre-push hook reviews each push of this
+public repo for private information.
 Pi and OpenCode discover those same shared skills through the shared Agent Skills
 path at `~/.agents/skills/`.
 

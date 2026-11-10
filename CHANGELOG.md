@@ -4,6 +4,10 @@ This file records agent assets (skills, subagents) that were removed, and why. U
 
 To restore a removed asset, find the commit that deleted it with `git log --diff-filter=D --oneline -- <path>`. Then run `git checkout <commit>^ -- <path>` and `./install.sh`.
 
+## 2026-11-09: Move the pre-push privacy review to the private overlay
+
+`hooks/pre-push` now lives at `$SRC_DIR/wihli-dotfiles-private/hooks/pre-push`. It still guards pushes of this public repo: `install.sh` points this repo's `core.hooksPath` at the overlay's `hooks/` directory when the overlay is present. The review prompt describes what counts as private, which belongs with the other work-specific material in the overlay.
+
 ## 2026-11-06: Retire agent desktop notifications and delayed pane titles
 
 Removed `agent-notify-ready`, its dedicated tests, its Claude and Codex Stop/UserPromptSubmit hooks, and Claude's desktop Notification hook. Routine ready/idle banners and sounds were not useful. Concurrent background workers also raced on shared pane state, making delayed title jobs fail and repeatedly open tmux's message viewer.
