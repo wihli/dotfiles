@@ -77,5 +77,6 @@
   "enabledPlugins": {},
   "effortLevel": "high",
   "skipDangerousModePermissionPrompt": true,
-  "skipAutoPermissionPrompt": true
+  "skipAutoPermissionPrompt": true,
+  "cleanupPeriodDays": 3650
 }
