@@ -4,6 +4,12 @@ This file records agent assets (skills, subagents) that were removed, and why. U
 
 To restore a removed asset, find the commit that deleted it with `git log --diff-filter=D --oneline -- <path>`. Then run `git checkout <commit>^ -- <path>` and `./install.sh`.
 
+## 2026-11-10: Remove long-session and north-star; stop syncing claude.ai skills and plugins
+
+Removed `skills/.local/share/skills/long-session/` and `skills/.local/share/skills/north-star/`. Both trigger only when named, and Claude Code's usage counters show zero invocations since they were added; Codex session transcripts since late September contain only catalog listings for them, no reads. Also removed the empty `research/`, `log-analyze/`, and `investigate-readonly/` directories left behind by earlier retirements.
+
+`claude/.claude/settings.json` now sets `syncClaudeAiSkills` and `syncClaudeAiPlugins` to false. The claude.ai organization pushes fourteen skills (sales and HR assistants plus generic document skills) and the cowork-plugin-management plugin into every Claude Code session; they cost about 2,700 tokens of system prompt per session and were invoked twice in total. Flip either key back to true and restart Claude Code to restore them; the generic document skills are also installable from the `anthropic-agent-skills` marketplace.
+
 ## 2026-11-09: Remove the Codex recap hook and the Claude formatter hook
 
 Removed `bin/.local/bin/codex-recap`, its test, and the Codex `UserPromptSubmit` hook that ran it when the prompt was exactly `recap`. Codex 0.167 generates recaps itself (`/recap`, plus automatic recaps for an idle thread), and the prompt history shows eight uses between late August and late September, none since. `codex/.codex/hooks.json` stays as an empty hook set because `install.sh` merges the private hook groups into it.

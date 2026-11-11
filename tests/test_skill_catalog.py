@@ -11,7 +11,7 @@ class SkillCatalogTests(unittest.TestCase):
     def test_retired_workflow_skills_are_not_advertised(self) -> None:
         for name in (
             "investigate-readonly", "log-analyze", "multi-mind", "research",
-            "finalize", "next",
+            "finalize", "next", "long-session", "north-star",
         ):
             with self.subTest(name=name):
                 self.assertFalse((SKILL_ROOT / name / "SKILL.md").exists())
@@ -42,12 +42,6 @@ class SkillCatalogTests(unittest.TestCase):
             "~/.local/share/agent-references/review-checklists.md",
             reference.read_text(),
         )
-
-    def test_north_star_does_not_reference_retired_research_skill(self) -> None:
-        north_star = (SKILL_ROOT / "north-star/SKILL.md").read_text()
-
-        self.assertNotIn("/research", north_star)
-        self.assertNotIn("Task agents", north_star)
 
     def test_delegate_skill_carries_the_cross_harness_spawn_contract(self) -> None:
         # Codex reads no agent definition files and will not delegate unless a skill asks
