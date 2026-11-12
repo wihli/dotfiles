@@ -153,6 +153,47 @@ class ThabtoFinishTests(unittest.TestCase):
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("ground-truth", result.stderr)
 
+    def test_blind_letters_map_back_to_participants(self):
+        (self.run / "blind").mkdir()
+        (self.run / "blind/key.json").write_text(json.dumps({"A": "codex", "B": "claude"}))
+        # Participant names mean the coordinator looked them up; the letters are required.
+        result = self.finish()
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("'A', 'B'", result.stderr)
+        named = copy.deepcopy(VERDICT)
+        named["selected_backbone"] = "merged"
+        result = self.finish(named)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("positions must have exactly one entry per participant ['A', 'B']", result.stderr)
+        self.assertFalse((self.run / "synthesis.md").exists())
+        blind = copy.deepcopy(VERDICT)
+        blind["selected_backbone"] = "A"
+        for claim in blind["claims"]:
+            claim["positions"] = {"A": claim["positions"]["codex"], "B": claim["positions"]["claude"]}
+        result = self.finish(blind)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("Letters: A = codex, B = claude", result.stdout)
+        verdict = json.loads((self.run / "verdict.json").read_text())
+        self.assertEqual(verdict["selected_backbone"], "codex")
+        self.assertEqual([claim["positions"] for claim in verdict["claims"]],
+                         [claim["positions"] for claim in VERDICT["claims"]])
+        self.assertEqual(verdict["aliases"], {"A": "codex", "B": "claude"})
+        self.assertEqual(self.label("codex", "Letters never reach labels.").returncode, 0)
+        # A key that disagrees with run.json is an error, not a silent remap.
+        (self.run / "blind/key.json").write_text(json.dumps({"A": "codex", "B": "pi"}))
+        self.write_run({"schema": 2, "status": "awaiting_synthesis",
+                        "participants": [{"name": "claude", "harness": "claude-code"},
+                                         {"name": "codex", "harness": "codex"}]})
+        (self.run / "verdict.json").unlink()
+        result = self.finish(blind)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("run.json lists", result.stderr)
+        # Two letters for one participant would silently merge positions.
+        (self.run / "blind/key.json").write_text(json.dumps({"A": "codex", "B": "claude", "C": "claude"}))
+        result = self.finish(blind)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("one letter to each participant", result.stderr)
+
     def test_legacy_run_without_participants_expects_claude_and_codex(self):
         self.write_run({"status": "awaiting_synthesis", "settings": {"claude_model": "sonnet"}})
         self.assertEqual(self.finish().returncode, 0)

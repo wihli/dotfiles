@@ -14,14 +14,14 @@ Name THABTO in your request to Claude Code or Codex:
 
 The coordinator writes your request and the relevant context to a task file, runs the driver, and reports progress. A run with the default models takes about 10–20 minutes. THABTO starts only when you name it.
 
-THABTO is read-only. Each model can read local files in the workspace. Each model cannot edit files, run shell commands, use MCP servers, or reach the network. For implementation work, use THABTO to investigate or design the change, then implement it in a normal session.
+THABTO is read-only. Each model can read local files in the workspace. Each model cannot edit files, run builds or tests, use MCP servers, or reach the network; in a shell-based harness it reads files with read-only shell commands. For implementation work, use THABTO to investigate or design the change, then implement it in a normal session.
 
 ## What a run does
 
 1. **Attempt.** Each participant answers the task in parallel. No participant sees another participant's answer.
 2. **Review.** The driver shuffles the participants into a ring. Each participant reviews the next participant's attempt and lists errors and omissions. With two participants, they review each other.
 3. **Revision.** Each participant that received a review revises its own answer. It can accept or reject each correction.
-4. **Synthesis.** The coordinator reads the final answers, goes back to the attempts and reviews when it must settle a claim, and writes one answer. Agreement between models counts as zero evidence; the coordinator rules on each claim from the sources. For each claim the evidence cannot settle yet, the answer names the check that would settle it.
+4. **Synthesis.** The coordinator reads the final answers under letters (A, B, …) rather than vendor names, because a model that knows whose answer it is reading favors its own vendor. It goes back to the attempts and received reviews when it must settle a claim, and writes one answer. Agreement between models counts as zero evidence; the coordinator rules on each claim from the sources. For each claim the evidence cannot settle yet, the answer names the check that would settle it.
 5. **Verdict.** The coordinator records a `verdict.json` file. For each claim that decided the outcome, the file stores each participant's position (`asserts`, `disputes`, or `silent`) and the coordinator's ruling:
 
    | Ruling | Meaning |
@@ -45,7 +45,7 @@ Each stage starts a fresh process for each participant. A failed or timed-out pa
 
 Claude runs only in Claude Code, because Anthropic's terms limit Claude subscription sign-in to Anthropic's own apps. The driver rejects a Claude model on OpenCode or Pi, and it removes Anthropic credentials from the environment of those harnesses.
 
-The default pair is `claude-opus-5-5` and `gpt-6-sol` at `high` effort. For a hard task, ask for the frontier pair (`fable` and `gpt-6-astra`). To run more than two participants, or to compare harnesses with the same model, ask for specific participants, for example "use thabto with codex, opencode, and pi on gpt-6-sol". To add Gemini 4 Argon, ask for a Pi participant on `github-copilot/gemini-4-argon`; Pi must be signed in to GitHub Copilot.
+The default pair is `claude-opus-5-5` and `gpt-6.1-sol` at `high` effort. For a hard task, ask for the frontier pair (`fable` and `gpt-6-astra`); `xhigh` is the effort ceiling. To run more than two participants, or to compare harnesses with the same model, ask for specific participants, for example "use thabto with codex, opencode, and pi on gpt-6.1-sol". For a review or design task where you want more issues surfaced, add Gemini 4 Argon as a third head: ask for a Pi participant on `github-copilot/gemini-4-argon`; Pi must be signed in to GitHub Copilot. A third head adds claims to check; it does not settle disputes, because a two-to-one split is not evidence.
 
 ## Read the scoreboard
 
@@ -102,7 +102,8 @@ Each run is a private directory under `~/.local/state/thabto/<run-id>/` (or `$XD
 | `task.md` | The task each participant received |
 | `run.json` | Participants, review ring and seed, status, and time and exit code for each stage |
 | `attempt/<name>/`, `review/<name>/`, `revision/<name>/` | `prompt.md`, `command.json`, raw `stdout.log` and `stderr.log`, `answer.md`, and `error.txt` on failure |
-| `synthesis-prompt.md` | The list of final answers that the coordinator reads |
+| `blind/key.json`, `blind/<letter>/` | The letter each participant was shown as, and copies of its final answer, first attempt, received review, and error, each when it exists |
+| `synthesis-prompt.md` | The list of final answers, by letter, that the coordinator reads |
 | `synthesis.md`, `verdict.json` | The coordinator's answer and verdict, after synthesis |
 
 A run's `status` is `running`, `awaiting_synthesis`, `synthesized`, `failed`, or `cancelled`. A run stays at `awaiting_synthesis` until the coordinator records a verdict.

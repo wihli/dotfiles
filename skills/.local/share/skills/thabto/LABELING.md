@@ -34,7 +34,7 @@ If nothing can settle a run yet, skip it; it stays pending for a later pass.
 python3 "<skill-directory>/scripts/thabto_label.py" --run "<run>" [--run "<run>" ...]
 ```
 
-Defaults: `claude-opus-5-5` and `gpt-6-sol` at `high` effort, 600 s per judge. A run counts as settled once evidence decides at least one dividing claim or the answer's main finding; the judges rule on the claims that have evidence and name the ones still open. Both judges run read-only with no network and no MCP, the same isolation as THABTO participants. Each judge receives the task, every participant's final answer, the synthesis, the claim rulings, and `label-evidence.md`, and returns a ruling: settled or unsettled, an outcome, an answer grade, and a grade for each participant's first attempt (its answer before review, which is what that model alone would have given).
+Defaults: `claude-opus-5-5` and `gpt-6.1-sol` at `high` effort, 600 s per judge. A run counts as settled once evidence decides at least one dividing claim or the answer's main finding; the judges rule on the claims that have evidence and name the ones still open. Both judges run read-only with no network and no MCP, the same isolation as THABTO participants. Each judge receives the task, every participant's final answer, the synthesis, the claim rulings, and `label-evidence.md`, and returns a ruling: settled or unsettled, an outcome, an answer grade, and a grade for each participant's first attempt (its answer before review, which is what that model alone would have given).
 
 Per run, the script prints one decision and saves the judges' raw output under `<run>/labeling/<stamp>/`:
 

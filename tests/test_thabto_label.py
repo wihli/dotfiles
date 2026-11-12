@@ -110,6 +110,17 @@ class ThabtoLabelTests(unittest.TestCase):
         self.assertIn("plan", json.loads((self.prompts / "claude.args").read_text()))
         self.assertIn("read-only", json.loads((self.prompts / "codex.args").read_text()))
 
+    def test_judges_learn_the_letters_a_blinded_coordinator_used(self):
+        verdict = self.verdict()
+        verdict["aliases"] = {"A": "codex", "B": "claude"}
+        (self.run / "verdict.json").write_text(json.dumps(verdict))
+        (self.run / "synthesis.md").write_text("SYNTHESIS: B's claim is not proven.")
+        self.label(ruling(), ruling())
+        for provider in ("claude", "codex"):
+            prompt = (self.prompts / (provider + ".md")).read_text()
+            self.assertIn("refers to participants by letter: A = codex, B = claude.", prompt)
+            self.assertLess(prompt.index("by letter"), prompt.index("TASK: investigate"))
+
     def test_disagreement_is_surfaced_and_writes_nothing(self):
         result = self.label(ruling(outcome="claude", reason="Claude was right."), ruling(outcome="codex"))
         self.assertEqual(result.returncode, 0, result.stderr)

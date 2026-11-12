@@ -1,6 +1,7 @@
 import json
 import os
 from pathlib import Path
+import random
 import signal
 import subprocess
 import sys
@@ -36,12 +37,15 @@ if "STALL" in prompt:
         "import time,pathlib;time.sleep(1.2);pathlib.Path(" + repr(str(marker)) + ").touch()"])
     pathlib.Path(str(marker) + ".started").touch()
     time.sleep(30)
-if "FAIL" in prompt and provider == "claude":
+if "FAIL" in prompt.split() and provider == "claude":
     print("synthetic provider failure", file=sys.stderr)
     sys.exit(7)
 if "REVIEW_FAIL" in prompt and stage == "review" and model == "test-codex-b":
     print("synthetic review failure", file=sys.stderr)
     sys.exit(8)
+if "REVISION_FAIL" in prompt and stage == "revision" and model == "test-codex-b":
+    print("synthetic revision failure", file=sys.stderr)
+    sys.exit(9)
 answer = f"{provider}:{model} {stage} answer"
 if provider == "claude":
     if "MALFORMED" in prompt:
@@ -74,6 +78,10 @@ else:
     if "MISSING_FINAL" not in prompt:
         pathlib.Path(args[args.index("--output-last-message") + 1]).write_text(answer)
 '''
+
+
+def key_of(key, name):
+    return next(letter for letter, owner in key.items() if owner == name)
 
 
 class ThabtoTests(unittest.TestCase):
@@ -123,7 +131,7 @@ class ThabtoTests(unittest.TestCase):
         self.assertEqual((run / "task.md").read_text(), self.task.read_text())
         metadata = self.run_metadata()
         self.assertEqual(metadata["status"], "awaiting_synthesis")
-        self.assertEqual(metadata["schema"], 3)
+        self.assertEqual(metadata["schema"], 4)
         self.assertRegex(metadata["started_at"], r"^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\dZ$")
         self.assertGreaterEqual(metadata["finished_at"], metadata["started_at"])
         self.assertEqual(metadata["participants"], [
@@ -143,6 +151,7 @@ class ThabtoTests(unittest.TestCase):
         for provider, peer in (("claude", "codex"), ("codex", "claude")):
             attempt = (run / f"attempt/{provider}/prompt.md").read_text()
             self.assertNotIn("attempt answer", attempt)
+            self.assertIn("Do not name your model, vendor, or harness", attempt)
             review = (run / f"review/{provider}/prompt.md").read_text()
             self.assertIn(self.answer(peer, "attempt"), review)
             self.assertNotIn(self.answer(provider, "attempt"), review)
@@ -160,8 +169,31 @@ class ThabtoTests(unittest.TestCase):
                 self.assertEqual(Path(receipt["cwd"]), self.workspace)
                 self.assertNotIn("--output-schema", receipt["args"])
                 self.assertNotIn("--json-schema", receipt["args"])
-        self.assertIn("revision/claude/answer.md", (run / "synthesis-prompt.md").read_text())
-        self.assertIn("revision/codex/answer.md", (run / "synthesis-prompt.md").read_text())
+        # The coordinator sees letters, not vendors; the key stays out of its prompt.
+        prompt = (run / "synthesis-prompt.md").read_text()
+        key = json.loads((run / "blind/key.json").read_text())
+        self.assertEqual(sorted(key), ["A", "B"])
+        self.assertEqual(sorted(key.values()), ["claude", "codex"])
+        for letter, name in key.items():
+            reviewer = next(r for r, t in metadata["review_targets"].items() if t == name)
+            self.assertIn(f"- {letter}: blind/{letter}/final.md (revised after review; "
+                          f"first attempt blind/{letter}/attempt.md; review received from {key_of(key, reviewer)}: "
+                          f"blind/{letter}/review-received.md)", prompt)
+            self.assertEqual((run / f"blind/{letter}/final.md").read_text().strip(), self.answer(name, "revision"))
+            self.assertEqual((run / f"blind/{letter}/attempt.md").read_text().strip(), self.answer(name, "attempt"))
+            self.assertEqual((run / f"blind/{letter}/review-received.md").read_text().strip(),
+                             self.answer(reviewer, "review"))
+        for leak in ("claude", "codex", "test-"):
+            self.assertNotIn(leak, prompt)
+            self.assertNotIn(leak, result.stderr)
+        self.assertIn("do not open blind/key.json", prompt)
+        self.assertEqual(sorted(p.name for p in (run / "blind").iterdir()), ["A", "B", "key.json"])
+        for letter in key:
+            self.assertEqual(sorted(p.name for p in (run / "blind" / letter).iterdir()),
+                             ["attempt.md", "final.md", "review-received.md"])
+        for letter in key:
+            self.assertIn(f"attempt: {letter} started", result.stderr)
+            self.assertIn(f"revision: {letter} finished", result.stderr)
         self.assertFalse((run / "synthesis.md").exists())
         self.assertEqual(list(self.workspace.iterdir()), [])
         self.assertEqual(run.stat().st_mode & 0o777, 0o700)
@@ -193,6 +225,9 @@ class ThabtoTests(unittest.TestCase):
         self.assertEqual(metadata["status"], "failed")
         self.assertIn("needs two", metadata["error"])
         self.assertIn(str(run), result.stderr)
+        # A failed run is no longer blind, so the driver names the letters for recovery.
+        key = json.loads((run / "blind/key.json").read_text())
+        self.assertIn("Letters: " + ", ".join(f"{letter} = {key[letter]}" for letter in sorted(key)), result.stderr)
         self.assertEqual(metadata["participants"][0]["failed_at"], "attempt")
         self.assertNotIn("review", metadata["stages"])
 
@@ -241,7 +276,6 @@ class ThabtoTests(unittest.TestCase):
     def test_attempt_failure_drops_one_participant_and_the_run_continues(self):
         result = self.three_way("FAIL")
         self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertIn("attempt: claude failed", result.stderr)
         metadata = self.run_metadata()
         self.assertEqual(metadata["status"], "awaiting_synthesis")
         self.assertEqual(metadata["participants"][0]["failed_at"], "attempt")
@@ -252,8 +286,18 @@ class ThabtoTests(unittest.TestCase):
         self.assertEqual(metadata["final_answers"], {"codex": "revision/codex/answer.md",
                                                      "codex-2": "revision/codex-2/answer.md"})
         prompt = (self.run_path() / "synthesis-prompt.md").read_text()
-        self.assertIn("Failed participants: claude (at attempt)", prompt)
-        self.assertNotIn("claude:", prompt.split("Failed participants")[0])
+        key = json.loads((self.run_path() / "blind/key.json").read_text())
+        letter = key_of(key, "claude")
+        self.assertIn(f"- {letter}: failed at attempt; no answer; error in blind/{letter}/error.txt. "
+                      f"Mark {letter} silent on every claim.", prompt)
+        self.assertEqual(sorted(p.name for p in (self.run_path() / "blind" / letter).iterdir()), ["error.txt"])
+        self.assertIn("synthetic provider failure", (self.run_path() / "attempt/claude/stderr.log").read_text())
+        self.assertIn("exited 7", (self.run_path() / f"blind/{letter}/error.txt").read_text())
+        self.assertEqual(sorted(key), ["A", "B", "C"])
+        self.assertIn(f"attempt: {letter} failed", result.stderr)
+        for leak in ("claude", "codex"):
+            self.assertNotIn(leak, prompt)
+            self.assertNotIn(leak, result.stderr)
 
     def test_review_failure_skips_the_orphaned_revision(self):
         result = self.three_way("REVIEW_FAIL")
@@ -267,8 +311,51 @@ class ThabtoTests(unittest.TestCase):
         self.assertEqual(metadata["final_answers"][target], f"attempt/{target}/answer.md")
         self.assertEqual(metadata["final_answers"]["codex-2"], "attempt/codex-2/answer.md")
         prompt = (self.run_path() / "synthesis-prompt.md").read_text()
-        self.assertIn(f"- {target}: attempt/{target}/answer.md (no revision: no review received)", prompt)
-        self.assertIn("codex-2 (at review)", prompt)
+        key = json.loads((self.run_path() / "blind/key.json").read_text())
+        orphan, failed = key_of(key, target), key_of(key, "codex-2")
+        reviewer = key_of(key, next(r for r, t in metadata["review_targets"].items() if t == "codex-2"))
+        self.assertEqual(sorted(key), ["A", "B", "C"])  # all three attempted: a real three-way ring
+        self.assertIn(f"- {orphan}: blind/{orphan}/final.md (unrevised: no review received; "
+                      f"first attempt blind/{orphan}/attempt.md)", prompt)
+        self.assertFalse((self.run_path() / f"blind/{orphan}/review-received.md").exists())
+        self.assertIn(f"- {failed}: blind/{failed}/final.md (unrevised: failed at review; error in "
+                      f"blind/{failed}/error.txt; first attempt blind/{failed}/attempt.md; review received from "
+                      f"{reviewer}: blind/{failed}/review-received.md)", prompt)
+        self.assertEqual((self.run_path() / f"blind/{failed}/final.md").read_text(),
+                         (self.run_path() / "attempt/codex-2/answer.md").read_text())
+        self.assertIn("exited 8", (self.run_path() / f"blind/{failed}/error.txt").read_text())
+        self.assertNotIn("codex", prompt)
+        self.assertNotIn("codex", result.stderr)
+
+    def test_revision_failure_keeps_the_attempt_and_the_received_review(self):
+        result = self.three_way("REVISION_FAIL")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        metadata = self.run_metadata()
+        self.assertEqual(metadata["stages"]["revision"]["codex-2"]["outcome"], "failed")
+        self.assertEqual(metadata["participants"][2]["failed_at"], "revision")
+        self.assertEqual(metadata["final_answers"]["codex-2"], "attempt/codex-2/answer.md")
+        key = json.loads((self.run_path() / "blind/key.json").read_text())
+        letter = key_of(key, "codex-2")
+        reviewer = key_of(key, next(r for r, t in metadata["review_targets"].items() if t == "codex-2"))
+        prompt = (self.run_path() / "synthesis-prompt.md").read_text()
+        self.assertIn(f"- {letter}: blind/{letter}/final.md (unrevised: failed at revision; error in "
+                      f"blind/{letter}/error.txt; first attempt blind/{letter}/attempt.md; review received from "
+                      f"{reviewer}: blind/{letter}/review-received.md)", prompt)
+        self.assertEqual((self.run_path() / f"blind/{letter}/final.md").read_text(),
+                         (self.run_path() / "attempt/codex-2/answer.md").read_text())
+        self.assertIn("exited 9", (self.run_path() / f"blind/{letter}/error.txt").read_text())
+
+    def test_letters_come_from_their_own_seeded_stream(self):
+        self.assertEqual(self.three_way().returncode, 0)
+        metadata = self.run_metadata()
+        key = json.loads((self.run_path() / "blind/key.json").read_text())
+        expected = ["claude", "codex", "codex-2"]
+        random.Random("7:blind").shuffle(expected)
+        self.assertEqual([key[letter] for letter in sorted(key)], expected)
+        ring = ["claude", "codex", "codex-2"]
+        random.Random(7).shuffle(ring)
+        self.assertEqual(metadata["ring"], ring)
+        self.assertNotEqual(expected, ring)
 
     def multi_harness(self, task=None, extra=()):
         self.task.write_text(task or self.task.read_text())

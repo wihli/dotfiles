@@ -66,6 +66,11 @@ def judge_prompt(run, names):
     finals = metadata.get("final_answers") or {}
     parts = [RULES, f"Participants: {', '.join(names)}.", "\n# Task the participants received\n",
              (run / "task.md").read_text(encoding="utf-8")]
+    aliases = verdict.get("aliases")
+    if isinstance(aliases, dict) and aliases:
+        # The coordinator saw letters, and its answer still uses them.
+        parts.insert(2, "The coordinator's final answer refers to participants by letter: "
+                        + ", ".join(f"{letter} = {aliases[letter]}" for letter in sorted(aliases)) + ".")
     for name in names:
         path = run / "attempt" / name / "answer.md"
         text = path.read_text(encoding="utf-8") if path.exists() else "(no attempt recorded)"
@@ -187,7 +192,7 @@ def parse_args():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--run", type=Path, action="append", required=True, help="Run directory. Repeatable.")
     parser.add_argument("--claude-model", default="claude-opus-5-5")
-    parser.add_argument("--codex-model", default="gpt-6-sol")
+    parser.add_argument("--codex-model", default="gpt-6.1-sol")
     parser.add_argument("--effort", default="high")
     parser.add_argument("--timeout", type=float, default=600, help="Seconds per judge (default: 600).")
     parser.add_argument("--claude-executable", default="claude")

@@ -97,6 +97,31 @@ def validate_verdict(verdict, participants):
            f"{'do' if disputed else 'do not'} contain a claim one participant asserts and another disputes.")
 
 
+def aliases_of(run):
+    """The letters the coordinator saw, mapped to participant names, for a run whose driver
+    blinded the synthesis; None for an older run."""
+    key = run / "blind" / "key.json"
+    if not key.exists():
+        return None
+    aliases = load_json(key, "blind key")
+    expect(isinstance(aliases, dict) and aliases
+           and all(isinstance(letter, str) and letter and isinstance(name, str) and name
+                   for letter, name in aliases.items()),
+           f"{key} must map letters to participant names.")
+    return aliases
+
+
+def unblind(verdict, aliases):
+    """Rewrite the coordinator's letters as participant names so stats and labels read one
+    vocabulary, and keep the letters it saw."""
+    for claim in verdict["claims"]:
+        claim["positions"] = {aliases[letter]: position for letter, position in claim["positions"].items()}
+    if verdict["selected_backbone"] in aliases:
+        verdict["selected_backbone"] = aliases[verdict["selected_backbone"]]
+    verdict["aliases"] = dict(aliases)
+    return verdict
+
+
 def load_run(run):
     metadata = load_json(run / "run.json", "run.json")
     expect(isinstance(metadata, dict), f"{run / 'run.json'} must contain an object.")
@@ -119,7 +144,16 @@ def finish(run, synthesis_path, verdict_path):
         raise VerdictError(f"Cannot read synthesis {synthesis_path}: {error.strerror}.") from None
     expect(synthesis.strip(), f"Synthesis file {synthesis_path} is empty.")
     verdict = load_json(verdict_path, "verdict")
-    validate_verdict(verdict, participants_of(metadata))
+    participants = participants_of(metadata)
+    aliases = aliases_of(run)
+    if aliases:
+        expect(len(aliases) == len(participants) and set(aliases.values()) == set(participants),
+               f"{run / 'blind/key.json'} must map one letter to each participant; it names "
+               f"{sorted(aliases.values())}, but run.json lists {list(participants)}.")
+        validate_verdict(verdict, tuple(aliases))
+        verdict = unblind(verdict, aliases)
+    else:
+        validate_verdict(verdict, participants)
     verdict["recorded_at"] = utc_now()
     (run / "synthesis.md").write_text(synthesis, encoding="utf-8")
     existing.write_text(json.dumps(verdict, indent=2) + "\n", encoding="utf-8")
@@ -127,6 +161,9 @@ def finish(run, synthesis_path, verdict_path):
     metadata["synthesized_at"] = verdict["recorded_at"]
     (run / "run.json").write_text(json.dumps(metadata, indent=2) + "\n", encoding="utf-8")
     print(f"Recorded synthesis.md and verdict.json; status synthesized: {run}")
+    if aliases:
+        key = ", ".join(f"{letter} = {name}" for letter, name in sorted(aliases.items()))
+        print(f"Letters: {key}. Name the participants in the answer you return; synthesis.md keeps the letters.")
 
 
 def label(run, outcome, answer, note):
