@@ -47,6 +47,22 @@ Markdown headings and tables do not render in a posted message. Use a short
 bold label on its own line in place of a heading, and a list or code block in
 place of a table. Beyond those labels, bold at most the action or decision.
 
+## Jira tickets and comments
+
+Lead with why the work matters and what should change. Use short paragraphs to
+connect the problem, intended outcome, and relevant constraint. Use lists for
+acceptance criteria, parallel items, or ordered steps; add headings only when
+they help readers navigate.
+
+Include only technical detail that helps someone understand or act. Prefer
+descriptive links to long URLs. Keep local worktree paths, agent-resume
+instructions, and command/build inventories in the working handoff.
+
+Descriptions hold the task and completion criteria. Put progress in comments:
+start with the result or blocker, then what happens next. Use Jira's timestamps
+instead of repeating dates. Before posting, read it as a teammate who has not
+seen the chat.
+
 ## PR descriptions
 
 Write for the human deciding how to review the change. The opening should make
