@@ -1,6 +1,51 @@
-# Writing PRs and comparison diagrams
+# Writing for human readers
 
-Read the section for the artifact being written. Repository templates take precedence over these defaults.
+Read "Reader attention" first, then the section for the artifact being written. Repository templates take precedence over these defaults.
+
+## Reader attention
+
+Readers scan before they read, and many stop after the first screen. Order,
+paragraphing, headings, and emphasis decide what that scan finds.
+
+Give visual prominence to what the reader needs to understand or decide. Use
+emphasis sparingly enough that it remains meaningful, and keep essential
+context and uncertainty visible.
+
+- Put the request, conclusion, or decision first. Background follows for the
+  reader who wants it.
+- Get the ordinary paragraphs right before adding structure: one idea per
+  paragraph, with a blank line between paragraphs.
+- Emphasis works by contrast. Bold the few words the reader must not miss,
+  usually the action, the decision, or a risk. A bold lead-in on every bullet,
+  a bold whole paragraph, and bold combined with italic or capitals all spend
+  that contrast. Headings, callouts, emoji, and color draw on the same
+  attention.
+- Add headings when the text is long enough that the reader will navigate it;
+  two levels are usually enough. Name what the section says, so a reader who
+  jumps there knows where they are.
+- Use a numbered list for ordered steps, a bulleted list for parallel items,
+  and a table when several items are compared on the same attributes. Keep
+  reasoning in connected prose.
+- Use code formatting for literal text the reader may type, search for, or
+  match exactly: identifiers, commands, paths, and values. It is not a form of
+  emphasis.
+- Present the same kind of thing the same way throughout, such as one label
+  per status.
+- Keep risks, open questions, and limits on a recommendation in the visible
+  text. Collapsed sections and trailing notes are for supporting detail.
+
+## Slack messages
+
+The first line appears in notifications, channel previews, and search results.
+Put the request or conclusion there, and name who needs to act when someone
+does.
+
+Keep the message to a few short paragraphs separated by blank lines. Put longer
+evidence, logs, or command output in a thread reply or a linked document.
+
+Markdown headings and tables do not render in a posted message. Use a short
+bold label on its own line in place of a heading, and a list or code block in
+place of a table. Beyond those labels, bold at most the action or decision.
 
 ## PR descriptions
 
@@ -43,11 +88,25 @@ context and details available in the diff or CI UI. On updates, replace stale
 testing or rollout text; do not append a chronological progress log.
 
 Use connected prose, with one paragraph per line so the web UI can wrap it.
+The template's headings carry the structure; add no heading levels beneath
+them. When one thing must stand out, make it the material risk or the action
+the reviewer must take, with a short bold lead-in. Leave routine testing and
+unchanged behavior at normal weight.
+
 If a required screenshot or graph cannot be captured, leave a precise placeholder:
 
 ```html
 <!-- TODO: paste screenshot of <dashboard/query> showing <metric> here -->
 ```
+
+## Documents and HTML pages
+
+For substantial Google Docs, formatted documents, and reader-facing HTML
+(explainers, review walkthroughs, or shareable reports), read
+[Typography](typography.md): the shared principles and only the section for
+that output medium. Read the theme options only when choosing a visual style.
+Skip that reference for PR descriptions, Slack, plain Markdown, small text
+corrections, and unrelated code changes; use the sections above instead.
 
 ## Comparison diagrams
 

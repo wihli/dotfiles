@@ -86,6 +86,8 @@ Use this Markdown pattern. Keep blank lines around the block content so code and
 </details>
 ````
 
+The renderer owns size, spacing, and line length. In the Markdown, reserve bold for a section's takeaway label, the evidence labels below, and the few words a reviewer must not miss, so a scan still finds them.
+
 Keep headings and internal link targets outside collapsed blocks so navigation always reaches visible context. Blocks start closed. Use a short causal reading order within each explanation; connect code from different files when it answers the same question. Explain unchanged code when it establishes the system model or a constraint the reviewer needs.
 
 Keep evidence beside the claim it supports. **Observed** means directly supported by inspected evidence; **Inferred** means a reasoned conclusion; **Unresolved** means missing evidence or an open decision. Use these labels when certainty affects interpretation, not on every paragraph. Distinguish an existing reviewer's question from an established defect. Keep detailed review discussion separate from background teaching.
