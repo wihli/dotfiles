@@ -466,7 +466,16 @@ pre code {
 }
 
 .article > :where(h2, h3, h4, h5, h6, p, ul, ol, blockquote, hr, dl, details, .verdict) {
+  max-width: 58ch;
+}
+
+/* Code and tables need more width than prose, so an open block that holds them widens. */
+.article > details[open]:has(pre, table, figure) {
   max-width: 76ch;
+}
+
+.article details > :where(p, ul, ol, blockquote, dl) {
+  max-width: 58ch;
 }
 
 .article details {
@@ -733,7 +742,7 @@ hr {
 }
 
 .artifact-footer {
-  max-width: 76ch;
+  max-width: 58ch;
   margin-top: 4.5rem;
   border-top: 1px solid var(--line);
   padding-top: 1.25rem;
@@ -1011,6 +1020,11 @@ hr {
   .article details > :not(summary),
   .artifact-provenance > :not(summary) {
     display: block !important;
+  }
+
+  /* Print shows every block's content, so a closed block that holds code widens too. */
+  .article > details:has(pre, table, figure) {
+    max-width: 76ch;
   }
 
   a {
