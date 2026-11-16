@@ -115,6 +115,32 @@ If a required screenshot or graph cannot be captured, leave a precise placeholde
 <!-- TODO: paste screenshot of <dashboard/query> showing <metric> here -->
 ```
 
+## PR review comments
+
+A comment posted under Eric's name on someone else's PR is a short note to a
+colleague. The structured finding (severity, source quote, counter-evidence)
+is for the report to Eric and stays there.
+
+Write one paragraph of plain prose: what happens today, what this change does
+to it, and the consequence with how often it would occur. Use no headings,
+lists, bold, or severity labels. Match the certainty to the evidence; "I
+think" fits a consequence nobody has observed. Put each link on the words it
+supports, pinned to a commit and line, and keep only the links the author
+needs to see why. When the author's own testing would have missed it, say why.
+Add one line for what is untested, and a suggestion block when the fix is a
+line or two.
+
+Example:
+
+> Nightly deploys are started by `deploy-bot[bot]` ([example run](…)), and the
+> action won't run for a bot unless it's listed in `allowed_bots` ([docs](…),
+> [the check](…)). So I think every nightly deploy would show the fallback
+> note instead of a summary. Manual runs still work, so local testing wouldn't
+> show it.
+>
+> Not tested end to end. This is from the action's docs and source at the
+> pinned commit.
+
 ## Documents and HTML pages
 
 For substantial Google Docs, formatted documents, and reader-facing HTML
