@@ -117,11 +117,11 @@ If a required screenshot or graph cannot be captured, leave a precise placeholde
 
 ## PR review comments
 
-A comment posted under Eric's name on someone else's PR is a short note to a
+A comment or reply posted under Eric's name on a PR is a short note to a
 colleague. The structured finding (severity, source quote, counter-evidence)
 is for the report to Eric and stays there.
 
-Write one paragraph of plain prose: what happens today, what this change does
+Write at most one paragraph of plain prose: what happens today, what this change does
 to it, and the consequence with how often it would occur. Use no headings,
 lists, bold, or severity labels. Match the certainty to the evidence; "I
 think" fits a consequence nobody has observed. Put each link on the words it
@@ -140,6 +140,10 @@ Example:
 >
 > Not tested end to end. This is from the action's docs and source at the
 > pinned commit.
+
+A reply that only confirms a point is one line:
+
+> Confirmed: same pair main already requires ([link](…)).
 
 ## Documents and HTML pages
 
