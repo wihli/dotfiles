@@ -204,10 +204,11 @@ class ThabtoTests(unittest.TestCase):
         claude = json.loads((run / "attempt/claude/stderr.log").read_text())["args"]
         codex = json.loads((run / "attempt/codex/stderr.log").read_text())["args"]
         self.assertEqual(claude[claude.index("--permission-mode") + 1], "plan")
-        self.assertEqual(claude[claude.index("--tools") + 1], "Read,Glob,Grep")
+        self.assertEqual(claude[claude.index("--tools") + 1], "Read,Glob,Grep,WebFetch,WebSearch")
         self.assertIn("--strict-mcp-config", claude)
         self.assertEqual(codex[codex.index("--sandbox") + 1], "read-only")
         self.assertIn("mcp_servers={}", codex)
+        self.assertLess(codex.index("--search"), codex.index("exec"))
         self.assertEqual(codex[codex.index("--ask-for-approval") + 1], "never")
         self.assertIn("test-claude", claude)
         self.assertIn("test-codex", codex)
@@ -387,8 +388,8 @@ class ThabtoTests(unittest.TestCase):
         agent = json.loads(config.read_text())["agent"]["thabto-child"]
         self.assertEqual(agent["mode"], "primary")
         self.assertEqual({k for k, v in agent["permission"].items() if v == "allow"},
-                         {"read", "glob", "grep", "list", "external_directory"})
-        for denied in ("edit", "bash", "webfetch", "websearch", "task", "skill"):
+                         {"read", "glob", "grep", "list", "external_directory", "webfetch", "websearch"})
+        for denied in ("edit", "bash", "task", "skill"):
             self.assertEqual(agent["permission"][denied], "deny")
         pi = json.loads((run / "attempt/pi/stderr.log").read_text())
         for flag in ("-p", "--no-session", "--no-extensions", "--no-skills", "--no-prompt-templates", "--offline"):

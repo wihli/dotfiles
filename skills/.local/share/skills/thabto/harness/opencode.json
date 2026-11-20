@@ -3,7 +3,7 @@
   "agent": {
     "thabto-child": {
       "mode": "primary",
-      "description": "THABTO read-only provider child. Investigates local sources; never edits, runs commands, or reaches the network.",
+      "description": "THABTO read-only provider child. Investigates local sources and reads public web sources; never edits or runs commands.",
       "permission": {
         "read": "allow",
         "glob": "allow",
@@ -15,8 +15,8 @@
         "task": "deny",
         "todowrite": "deny",
         "question": "deny",
-        "webfetch": "deny",
-        "websearch": "deny",
+        "webfetch": "allow",
+        "websearch": "allow",
         "lsp": "deny",
         "skill": "deny"
       }

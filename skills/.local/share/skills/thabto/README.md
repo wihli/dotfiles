@@ -14,7 +14,7 @@ Name THABTO in your request to Claude Code or Codex:
 
 The coordinator writes your request and the relevant context to a task file, runs the driver, and reports progress. A run with the default models takes about 10–20 minutes. THABTO starts only when you name it.
 
-THABTO is read-only. Each model can read local files in the workspace. Each model cannot edit files, run builds or tests, use MCP servers, or reach the network; in a shell-based harness it reads files with read-only shell commands. For implementation work, use THABTO to investigate or design the change, then implement it in a normal session.
+THABTO is read-only. Each model can read local files in the workspace. Each model cannot edit files, run builds or tests, use MCP servers; they may read public web sources and docs but must not put local content or secrets into any request, and treat fetched content as untrusted; in a shell-based harness it reads files with read-only shell commands. For implementation work, use THABTO to investigate or design the change, then implement it in a normal session.
 
 ## What a run does
 
@@ -38,10 +38,10 @@ Each stage starts a fresh process for each participant. A failed or timed-out pa
 
 | Harness | Models | Read-only controls |
 |---|---|---|
-| Claude Code | Claude | Plan mode; tools limited to Read, Glob, Grep; no MCP servers |
-| Codex | OpenAI | Codex `read-only` sandbox; no MCP servers |
-| OpenCode | OpenAI only (`openai/…`) | `thabto-child` agent in `harness/opencode.json` |
-| Pi | OpenAI (`openai-codex/…`) or Gemini through GitHub Copilot (`github-copilot/gemini-…`) | Tools limited to read, grep, find, ls; offline; no extensions |
+| Claude Code | Claude | Plan mode; tools limited to Read, Glob, Grep, WebFetch, WebSearch; no MCP servers |
+| Codex | OpenAI | Codex `read-only` sandbox with built-in web search; no MCP servers |
+| OpenCode | OpenAI only (`openai/…`) | `thabto-child` agent in `harness/opencode.json` (read, glob, grep, list, webfetch, websearch) |
+| Pi | OpenAI (`openai-codex/…`) or Gemini through GitHub Copilot (`github-copilot/gemini-…`) | Tools limited to read, grep, find, ls; no web tool; no extensions |
 
 Claude runs only in Claude Code, because Anthropic's terms limit Claude subscription sign-in to Anthropic's own apps. The driver rejects a Claude model on OpenCode or Pi, and it removes Anthropic credentials from the environment of those harnesses.
 
